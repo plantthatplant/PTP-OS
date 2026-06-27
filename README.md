@@ -27,6 +27,7 @@ not written down here, it is not yet part of PTP OS.
 | How the system is structured | [`docs/architecture.md`](docs/architecture.md) |
 | How Synopta data reaches Gaia | [`docs/gaia-collector.md`](docs/gaia-collector.md) |
 | How Gaia walks the greenhouse with you | [`specs/field-companion.md`](specs/field-companion.md) |
+| How every client talks to Gaia | [`docs/gaia-api.md`](docs/gaia-api.md) |
 | What we are building and when | [`docs/roadmap.md`](docs/roadmap.md) |
 | The concepts the system reasons about | [`domain/`](domain/) |
 | Why key decisions were made | [`adr/`](adr/) |
@@ -51,6 +52,7 @@ ptp-os/
 ├── app/            The first working Greenhouse Brain (Sprint 1 prototype)
 ├── collector/      Gaia Collector — local Synopta → Canonical Snapshot bridge (+ its tests)
 ├── companion/      Gaia Field Companion — device-independent walk interface (+ its tests)
+├── api/            Gaia API v1 — the single public gateway every client talks to (+ its tests)
 └── data/           Runtime output the Collector writes and Gaia reads (generated; git-ignored)
 ```
 
@@ -79,6 +81,13 @@ Walk a whole day with the Founder Companion (phone brief + silent glasses walk +
 
 ```
 python companion/daily.py            # Oskar's day across phone + Even G2 surfaces
+```
+
+Serve the Gaia API — the single gateway every client (Lovable, Even G2, mobile, DJI…) uses:
+
+```
+python api/server.py                 # GET /api/v1/morning, /companion, … (see docs/gaia-api.md)
+python api/demo.py                   # one API, many clients, over real HTTP
 ```
 
 See [`collector/README.md`](collector/README.md), [`docs/gaia-collector.md`](docs/gaia-collector.md),
