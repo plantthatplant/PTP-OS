@@ -1,0 +1,40 @@
+{
+  "_comment": "Captured sample of a raw Synopta export, vendor-shaped on purpose (nested signals, string units, comma decimals, numeric house ids) so the Collector must translate and clean it. Deliberately includes one messy value, one sensor-fault alarm, and one missing signal so honest-absence and resilience are exercised. Replace with a real export when its shape is confirmed (specs/gaia-collector.md §11).",
+  "captured_at": "2026-06-27T05:48:00Z",
+  "site": "Kalaberga",
+  "houses": [
+    {
+      "house_id": "1",
+      "label": "Hus 1",
+      "signals": {
+        "air_temp":      { "value": "24,2 °C" },
+        "rel_humidity":  { "value": 92,   "unit": "%" },
+        "vent_position": { "value": 0,    "unit": "%" },
+        "outside_temp":  { "value": 11.0, "unit": "°C" },
+        "alarm":         { "active": false, "text": null }
+      }
+    },
+    {
+      "house_id": "2",
+      "label": "Hus 2",
+      "signals": {
+        "air_temp":      { "value": 16.0, "unit": "°C" },
+        "rel_humidity":  { "value": 66,   "unit": "%" },
+        "vent_position": { "value": 20,   "unit": "%" },
+        "outside_temp":  { "value": 11.0, "unit": "°C" },
+        "alarm":         { "active": true, "text": "Sensor fault: temperature out of expected range" }
+      }
+    },
+    {
+      "house_id": "3",
+      "label": "Hus 3",
+      "signals": {
+        "air_temp":      { "value": 21.0, "unit": "°C" },
+        "rel_humidity":  { "value": 64,   "unit": "%" },
+        "vent_position": { "value": 30,   "unit": "%" },
+        "outside_temp":  { "value": 11.0, "unit": "°C" },
+        "alarm":         { "active": false, "text": null }
+      }
+    }
+  ]
+}

@@ -1,0 +1,14 @@
+{
+  "_comment": "Facility configuration — the slow-changing frame the observations hang on (snapshot spec 5e). This is KNOWN CONFIGURATION, not sensed data: zone identity, stage and crop, and the sensors the houses are known NOT to have. Edit this when the greenhouse layout changes. Stage/crop are agronomic context, not biological inference. Zone ids match the existing convention (h1/h2/h3) so a Collector snapshot lines up with the rest of the system.",
+  "greenhouse_id": "gh-kalaberga",
+  "greenhouse_name": "Kålaberga",
+  "zones": [
+    {"house_id": "1", "id": "h1", "name": "House 1 (propagation)", "stage": "propagation", "crop": "mixed aroid cuttings"},
+    {"house_id": "2", "id": "h2", "name": "House 2 (growing on)", "stage": "vegetative", "crop": "young foliage plants"},
+    {"house_id": "3", "id": "h3", "name": "House 3 (finishing)", "stage": "finishing", "crop": "finishing batch"}
+  ],
+  "known_absent": [
+    "co2 — no CO₂ sensor is reported by Synopta for these houses",
+    "light — no light/PPFD sensor is reported by Synopta for these houses"
+  ]
+}
