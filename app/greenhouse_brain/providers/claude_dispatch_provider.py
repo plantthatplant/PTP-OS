@@ -21,26 +21,12 @@ from typing import Dict, List, Optional
 from ..domain import (
     Greenhouse, Zone, ClimateTargets, ClimateReading, Observation, Outlook,
 )
+from ..units import to_number, airflow_from_vent
 from .base import GreenhouseProvider
 from .transport import DispatchTransport, FixtureTransport
 
-
-def _coerce_number(raw) -> Optional[float]:
-    """Live data can arrive as strings with European decimal commas and units
-    ('24,2 °C'). Clean to a float so the (unchanged) translation never sees the mess."""
-    if raw is None or isinstance(raw, (int, float)):
-        return float(raw) if isinstance(raw, (int, float)) else None
-    s = str(raw).strip().replace(",", ".")
-    num = ""
-    for ch in s:
-        if ch.isdigit() or ch in ".-":
-            num += ch
-        elif num:
-            break
-    try:
-        return float(num)
-    except ValueError:
-        return None
+# Vendor-neutral number/airflow cleaning is shared (greenhouse_brain.units); see ADR-002.
+_coerce_number = to_number
 
 
 def _signal(signals: dict, key: str) -> Optional[float]:
@@ -48,17 +34,6 @@ def _signal(signals: dict, key: str) -> Optional[float]:
     if not node or node.get("value") is None:
         return None
     return float(node["value"])
-
-
-def _airflow_from_vent(vent_pct: Optional[float]) -> str:
-    """Translate a vent position into the airflow the plants actually feel."""
-    if vent_pct is None:
-        return "normal"
-    if vent_pct <= 0:
-        return "low"
-    if vent_pct <= 40:
-        return "normal"
-    return "good"
 
 
 class ClaudeDispatchProvider(GreenhouseProvider):
@@ -143,7 +118,7 @@ class ClaudeDispatchProvider(GreenhouseProvider):
                 humidity_pct=_signal(sig, "rel_humidity") or 0.0,
                 co2_ppm=0.0,        # not supplied by Claude Dispatch v1
                 light_ppfd=0.0,     # not supplied by Claude Dispatch v1
-                airflow=_airflow_from_vent(_signal(sig, "vent_position")),
+                airflow=airflow_from_vent(_signal(sig, "vent_position")),
                 source="claude-dispatch",
                 reliability=reliability,
                 hours_old=0.0,

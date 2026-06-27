@@ -15,6 +15,7 @@ from typing import Dict, List, Optional
 
 from ..domain import Greenhouse, Zone, ClimateTargets, ClimateReading, Observation, Outlook
 from ..snapshot import Snapshot, SnapshotObservation
+from ..units import to_number, airflow_from_vent
 from .base import GreenhouseProvider
 
 # Targets are agronomic knowledge (what 'good' is), not observation — so they live with
@@ -30,11 +31,8 @@ _TARGETS_BY_STAGE = {
 _RECOGNISED = {"leaf-wetness", "sensor-anomaly", "tone", "order", "mother-stock", "dev-note", "transient"}
 
 
-def _num(v) -> Optional[float]:
-    try:
-        return float(str(v).replace(",", ".").replace("%", "").strip())
-    except (TypeError, ValueError):
-        return None
+# Vendor-neutral number/airflow cleaning is shared (greenhouse_brain.units).
+_num = to_number
 
 
 class SnapshotProvider(GreenhouseProvider):
@@ -49,21 +47,6 @@ class SnapshotProvider(GreenhouseProvider):
             if o.subject == subject and o.kind == kind and o.has_value():
                 return o
         return None
-
-    def _airflow(self, vent_value) -> str:
-        if vent_value is None:
-            return "normal"
-        s = str(vent_value).lower()
-        if "closed" in s:
-            return "low"
-        if "open" in s:
-            return "good"
-        n = _num(vent_value)
-        if n is None:
-            return "normal"
-        if n <= 0:
-            return "low"
-        return "normal" if n <= 40 else "good"
 
     # --- the GreenhouseProvider interface, served from the Snapshot ----------
 
@@ -92,7 +75,7 @@ class SnapshotProvider(GreenhouseProvider):
                 zone_id=z.id, temp_c=t, humidity_pct=h,
                 co2_ppm=(_num(co2.value) or 0.0) if co2 else 0.0,
                 light_ppfd=(_num(light.value) or 0.0) if light else 0.0,
-                airflow=self._airflow(vent.value if vent else None),
+                airflow=airflow_from_vent(vent.value if vent else None),
                 source="snapshot", reliability=reliability, hours_old=0.0,
                 timestamp=temp.captured_at,
             )
