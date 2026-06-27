@@ -80,6 +80,16 @@ class ServiceTest(unittest.TestCase):
     def test_unknown_question_is_handled(self):
         self.assertIn("error", self.svc.answer_question("nope", "x"))
 
+    def test_observation_history_includes_posted_and_voice(self):
+        self.svc.post_observation({"subject": "h2", "kind": "leaf-wetness", "value": "wet",
+                                   "source": "dji", "method": "vision-inferred", "confidence": "medium"})
+        self.svc.voice_note("brown spots, bench 3", subject="h1")
+        hist = self.svc.observations()
+        kinds = {o["kind"] for o in hist}
+        self.assertIn("leaf-wetness", kinds)
+        self.assertIn("note", kinds)
+        self.assertTrue(all({"subject", "kind", "value", "captured_at"} <= set(o) for o in hist))
+
     def test_learning_reports_calibration(self):
         learn = self.svc.learning()
         self.assertIn("calibration", learn)

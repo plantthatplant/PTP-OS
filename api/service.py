@@ -212,6 +212,27 @@ class GaiaService:
                     f.write(json.dumps(o, ensure_ascii=False) + "\n")
         return {"accepted": len(accepted), "rejected": len(rejected)}
 
+    def observations(self, limit=50) -> list:
+        """Observation history — posted Canonical Observations + captured voice notes, newest
+        first. Read-only view of what has been observed; no reasoning."""
+        items = []
+        if os.path.exists(_OBS_LOG):
+            with open(_OBS_LOG, "r", encoding="utf-8") as f:
+                for line in f:
+                    line = line.strip()
+                    if line:
+                        items.append(json.loads(line))
+        for a in store.load_answers():
+            if a.get("kind") == "note":
+                items.append({"subject": a.get("subject", "site"), "kind": "note",
+                              "value": a.get("answer"), "captured_at": a.get("captured_on"),
+                              "source": "grower (voice)", "method": "observed-by-human",
+                              "confidence": "medium"})
+        items.sort(key=lambda o: str(o.get("captured_at") or ""), reverse=True)
+        return [{"subject": o.get("subject"), "kind": o.get("kind"), "value": o.get("value"),
+                 "captured_at": o.get("captured_at"), "method": o.get("method"),
+                 "confidence": o.get("confidence")} for o in items[:limit]]
+
     def companion(self) -> dict:
         """The Even G2 surface: exactly one message + urgency + confidence + ack state."""
         _, _, analysis, questions, gaps, brief = self._compose()

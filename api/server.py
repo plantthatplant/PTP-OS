@@ -39,6 +39,7 @@ def _routes():
         ("GET", p(r"/questions"), lambda s, m, q, b: (200, s.questions())),
         ("GET", p(r"/companion"), lambda s, m, q, b: (200, s.companion())),
         ("GET", p(r"/evening"), lambda s, m, q, b: (200, s.evening())),
+        ("GET", p(r"/observations"), lambda s, m, q, b: (200, s.observations())),
         ("POST", p(r"/observations"), lambda s, m, q, b: (201, s.post_observation(b))),
         ("POST", p(r"/questions/(?P<id>[^/]+)/answer"),
          lambda s, m, q, b: (200, s.answer_question(m["id"], (b or {}).get("answer", "")))),

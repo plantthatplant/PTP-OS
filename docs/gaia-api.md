@@ -40,6 +40,7 @@ questions).
 | GET | `/api/v1/memory` · `/memory/search?q=` | Lessons learned (sanitised) |
 | GET | `/api/v1/knowledge-gaps` | The day's worth-asking questions + plan-vs-reality gaps |
 | GET | `/api/v1/learning` | Experiments open/closed, lessons, **calibration (hold-rate)** |
+| GET | `/api/v1/observations` | Observation history (posted observations + voice notes), newest first |
 | POST | `/api/v1/observations` | **Canonical Observations only** (no client-specific payloads) |
 | GET | `/api/v1/questions` | The day's questions |
 | POST | `/api/v1/questions/{id}/answer` | `{ "answer": "..." }` → confidence before/after, worthwhile |
