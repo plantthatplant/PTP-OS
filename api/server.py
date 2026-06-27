@@ -11,13 +11,17 @@ from __future__ import annotations
 import json
 import os
 import re
+import time
+from datetime import datetime, timezone
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from urllib.parse import urlparse, parse_qs
 
 from .service import GaiaService
+from .web import home_page
 
 API_VERSION = "v1"
 _DEV_KEY = "gaia-dev-key"
+_PUBLIC = ("/api/v1/health", "/", "/index.html")   # reachable without an API key
 
 
 def _auth_key():
@@ -39,6 +43,7 @@ def _routes():
         ("GET", p(r"/questions"), lambda s, m, q, b: (200, s.questions())),
         ("GET", p(r"/companion"), lambda s, m, q, b: (200, s.companion())),
         ("GET", p(r"/evening"), lambda s, m, q, b: (200, s.evening())),
+        ("GET", p(r"/health"), lambda s, m, q, b: (200, s.health())),
         ("GET", p(r"/observations"), lambda s, m, q, b: (200, s.observations())),
         ("POST", p(r"/observations"), lambda s, m, q, b: (201, s.post_observation(b))),
         ("POST", p(r"/questions/(?P<id>[^/]+)/answer"),
@@ -52,8 +57,10 @@ def _err(code, message):
     return {"error": {"code": code, "message": message}}
 
 
-def make_handler(service: GaiaService, api_key: str):
+def make_handler(service: GaiaService, api_key: str, logger=None):
     routes = _routes()
+    log = logger or (lambda rec: None)
+    home = home_page(api_key)
 
     class Handler(BaseHTTPRequestHandler):
         server_version = "GaiaAPI/v1"
@@ -67,15 +74,35 @@ def make_handler(service: GaiaService, api_key: str):
             self.end_headers()
             self.wfile.write(body)
 
+        def _send_html(self, status, html):
+            body = html.encode("utf-8")
+            self.send_response(status)
+            self.send_header("Content-Type", "text/html; charset=utf-8")
+            self.send_header("Content-Length", str(len(body)))
+            self.end_headers()
+            self.wfile.write(body)
+
         def _authed(self) -> bool:
             auth = self.headers.get("Authorization", "")
             key = auth[7:] if auth.startswith("Bearer ") else self.headers.get("X-API-Key", "")
             return key == api_key
 
+        def _log(self, method, path, status, t0, error=None):
+            log({"timestamp": datetime.now(timezone.utc).isoformat(timespec="seconds"),
+                 "client": self.client_address[0], "method": method, "endpoint": path,
+                 "status": status, "response_ms": round((time.monotonic() - t0) * 1000, 1),
+                 "error": error})
+
         def _dispatch(self, method):
+            t0 = time.monotonic()
             parsed = urlparse(self.path)
-            if not self._authed():
-                return self._send(401, _err("unauthorized", "missing or invalid API key"))
+            # Built-in Control Center page (public, HTML).
+            if method == "GET" and parsed.path in ("/", "/index.html"):
+                self._send_html(200, home)
+                return self._log(method, parsed.path, 200, t0)
+            if parsed.path not in _PUBLIC and not self._authed():
+                self._send(401, _err("unauthorized", "missing or invalid API key"))
+                return self._log(method, parsed.path, 401, t0, "unauthorized")
             body = None
             if method == "POST":
                 length = int(self.headers.get("Content-Length", 0) or 0)
@@ -83,8 +110,9 @@ def make_handler(service: GaiaService, api_key: str):
                 try:
                     body = json.loads(raw or b"null")
                 except json.JSONDecodeError:
-                    return self._send(400, _err("bad_request", "body must be valid JSON"))
-            path_matched = False
+                    self._send(400, _err("bad_request", "body must be valid JSON"))
+                    return self._log(method, parsed.path, 400, t0, "bad_json")
+            status, obj, error, path_matched = None, None, None, False
             for rm, rx, fn in routes:
                 mobj = rx.match(parsed.path)
                 if not mobj:
@@ -95,11 +123,14 @@ def make_handler(service: GaiaService, api_key: str):
                 try:
                     status, obj = fn(service, mobj.groupdict(), parse_qs(parsed.query), body)
                 except Exception as e:                       # never leak a stack trace to a client
-                    status, obj = 500, _err("internal_error", str(e)[:200])
-                return self._send(status, obj)
-            return self._send(405 if path_matched else 404,
-                              _err("method_not_allowed" if path_matched else "not_found",
-                                   f"{method} {parsed.path}"))
+                    status, obj, error = 500, _err("internal_error", str(e)[:200]), str(e)[:200]
+                break
+            if status is None:
+                status = 405 if path_matched else 404
+                obj = _err("method_not_allowed" if path_matched else "not_found", f"{method} {parsed.path}")
+                error = obj["error"]["code"]
+            self._send(status, obj)
+            self._log(method, parsed.path, status, t0, error)
 
         def do_GET(self):
             self._dispatch("GET")
@@ -113,10 +144,10 @@ def make_handler(service: GaiaService, api_key: str):
     return Handler
 
 
-def serve(host="127.0.0.1", port=8000, service=None, api_key=None):
+def serve(host="127.0.0.1", port=8000, service=None, api_key=None, logger=None):
     service = service or GaiaService()
     api_key = api_key or _auth_key()
-    httpd = ThreadingHTTPServer((host, port), make_handler(service, api_key))
+    httpd = ThreadingHTTPServer((host, port), make_handler(service, api_key, logger))
     print(f"Gaia API {API_VERSION} on http://{host}:{httpd.server_address[1]}/api/v1  "
           f"(auth: {'set' if api_key != _DEV_KEY else 'dev key'})")
     return httpd

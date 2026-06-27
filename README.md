@@ -28,6 +28,7 @@ not written down here, it is not yet part of PTP OS.
 | How Synopta data reaches Gaia | [`docs/gaia-collector.md`](docs/gaia-collector.md) |
 | How Gaia walks the greenhouse with you | [`specs/field-companion.md`](specs/field-companion.md) |
 | How every client talks to Gaia | [`docs/gaia-api.md`](docs/gaia-api.md) |
+| How to run Gaia in production | [`docs/production-deployment.md`](docs/production-deployment.md) |
 | What we are building and when | [`docs/roadmap.md`](docs/roadmap.md) |
 | The concepts the system reasons about | [`domain/`](domain/) |
 | Why key decisions were made | [`adr/`](adr/) |
@@ -88,6 +89,14 @@ Serve the Gaia API — the single gateway every client (Lovable, Even G2, mobile
 ```
 python api/server.py                 # GET /api/v1/morning, /companion, … (see docs/gaia-api.md)
 python api/demo.py                   # one API, many clients, over real HTTP
+```
+
+Go live (production): run continuously + auto-start at logon + a browser Control Center:
+
+```
+python -m api.run                    # the supervisor: API + scheduled collection, all day
+                                     # → open http://127.0.0.1:8000/   (see docs/production-deployment.md)
+powershell -File run/install-startup.ps1   # start automatically every time the computer signs in
 ```
 
 See [`collector/README.md`](collector/README.md), [`docs/gaia-collector.md`](docs/gaia-collector.md),

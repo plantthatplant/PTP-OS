@@ -22,6 +22,7 @@ from greenhouse_brain.morning_analysis import MorningAnalysisEngine
 from greenhouse_brain import knowledge_gap, store, fusion
 from greenhouse_brain.lifecycle import experiment_from_candidate, reinforce, apply_outcome
 from collector.observers import plan_vs_reality
+from . import health as _health
 
 _LATEST = os.path.join(_paths.REPO_ROOT, "data", "inbox", "latest.json")
 _PLAN = os.path.join(_paths.REPO_ROOT, "data", "inbox", "plan-latest.json")
@@ -45,8 +46,16 @@ class GaiaService:
 
     # --- internal composition (the one orchestration) -----------------------
     def _snapshot(self):
-        path = self.snapshot_path or (_LATEST if os.path.exists(_LATEST) else _SAMPLE)
-        with open(path, "r", encoding="utf-8") as f:
+        # Resilience: prefer the configured snapshot, then the published latest, then the bundled
+        # sample — so a missing or not-yet-collected snapshot never takes Gaia down.
+        for path in (self.snapshot_path, _LATEST, _SAMPLE):
+            if path and os.path.exists(path):
+                try:
+                    with open(path, "r", encoding="utf-8") as f:
+                        return import_snapshot(json.load(f))
+                except (OSError, json.JSONDecodeError):
+                    continue
+        with open(_SAMPLE, "r", encoding="utf-8") as f:   # last resort, always present
             return import_snapshot(json.load(f))
 
     def _plan_obs(self):
@@ -80,6 +89,7 @@ class GaiaService:
                                   reality=snap.reality_confidence(), plan_obs=plan_obs,
                                   plan_gaps=gaps, memories=store.load_memories(),
                                   changes=None, questions=questions)
+        _health.STATE.record_analysis()
         return snap, provider, analysis, questions, gaps, brief
 
     # --- public surface (one method per endpoint) ---------------------------
@@ -247,6 +257,50 @@ class GaiaService:
                     "acknowledged": False, "question_id": q.id}
         return {"message": brief.headline, "urgency": "info", "confidence": brief.confidence,
                 "acknowledged": True, "question_id": None}
+
+    def health(self) -> dict:
+        """Production liveness — overall + per-component status, last snapshot/analysis, uptime."""
+        st = _health.STATE
+        # last snapshot freshness
+        snap_path = self.snapshot_path or (_LATEST if os.path.exists(_LATEST) else _SAMPLE)
+        snap_at, snap_age_min = None, None
+        try:
+            with open(snap_path, "r", encoding="utf-8") as f:
+                snap_at = json.load(f).get("assembled_at")
+            snap_age_min = int((datetime.now(timezone.utc).timestamp()
+                                - os.path.getmtime(snap_path)) / 60)
+        except (OSError, json.JSONDecodeError):
+            pass
+        try:
+            mem_ok = isinstance(store.load_memories(), list)
+            learn = self.learning()
+            learn_ok = True
+        except Exception:
+            mem_ok = learn_ok = False
+            learn = {}
+        collector = st.last_collection or {"status": "not-run-yet"}
+        snapshot_present = snap_at is not None
+        stale = snap_age_min is not None and snap_age_min > 24 * 60
+        overall = "ok"
+        if not snapshot_present or not mem_ok or not learn_ok:
+            overall = "degraded"
+        if collector.get("status") in ("source-failed",) and not snapshot_present:
+            overall = "down"
+        return {
+            "status": overall,
+            "version": st.version,
+            "uptime_seconds": st.uptime_seconds(),
+            "api": "ok",
+            "brain": "ok",
+            "memory": "ok" if mem_ok else "error",
+            "learning": "ok" if learn_ok else "error",
+            "collector": collector.get("status", "unknown"),
+            "last_snapshot": {"assembled_at": snap_at, "age_minutes": snap_age_min,
+                              "stale": bool(stale)},
+            "last_successful_analysis": st.last_analysis_at,
+            "experiments": {"open": learn.get("experiments_open"),
+                            "closed": learn.get("experiments_closed")},
+        }
 
     def evening(self) -> dict:
         learning = self.learning()
