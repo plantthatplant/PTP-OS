@@ -89,6 +89,33 @@ def load_answers():
     return out
 
 
+# --- Field Companion interactions (Sprint 4) --------------------------------
+# Every interaction the Companion has with the grower (asked or silently considered) is
+# preserved here as permanent evidence — append-only, captured not analysed. The *worthwhile*
+# signal still flows through append_question_eval() so the existing learning loop applies.
+
+_INTERACTIONS_FILE = os.path.join(_DATA_DIR, "interactions.jsonl")
+
+
+def append_interaction(record: dict) -> str:
+    os.makedirs(_DATA_DIR, exist_ok=True)
+    with open(_INTERACTIONS_FILE, "a", encoding="utf-8") as f:
+        f.write(json.dumps(record, ensure_ascii=False) + "\n")
+    return _INTERACTIONS_FILE
+
+
+def load_interactions():
+    if not os.path.exists(_INTERACTIONS_FILE):
+        return []
+    out = []
+    with open(_INTERACTIONS_FILE, "r", encoding="utf-8") as f:
+        for line in f:
+            line = line.strip()
+            if line:
+                out.append(json.loads(line))
+    return out
+
+
 _TODAY_SNAPSHOT_FILE = os.path.join(_DATA_DIR, "today-snapshot.json")
 
 
