@@ -15,6 +15,7 @@ discuss, decide, and only then record the outcome as an [ADR](../adr/) and updat
 | [RFC-001](RFC-001-feedback-and-learning-loop.md) | Represent the outcome/learning loop in the architecture | Open (under review) |
 | [RFC-002](RFC-002-provider-taxonomy.md) | A taxonomy for heterogeneous providers | Accepted in principle |
 | [RFC-003](RFC-003-layered-specialist-agent-architecture.md) | Layered architecture: specialist agents as consumers of one reasoning core | Open (under review) |
+| [RFC-004](RFC-004-observer-network.md) | The Observer Network: how Gaia observes reality (generalizes the Provider Layer; adds the Observation Planner) | Open (under review) |
 
 > Decisions of record (Sprint 0 review): the `rfc/` directory is a **permanent**
 > part of the repository. **RFC-002 is accepted in principle** — its conventions

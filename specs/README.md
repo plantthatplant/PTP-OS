@@ -17,6 +17,11 @@ without prescribing throwaway implementation detail.
 | [`daily-grower-dialogue.md`](daily-grower-dialogue.md) | The daily two-way conversation through which Gaia and the Head Grower improve together. |
 | [`decision-library.md`](decision-library.md) | Gaia's accumulated biological experience — every recommendation becomes a queryable decision record. The long-term memory. |
 | [`curiosity-engine.md`](curiosity-engine.md) | How Gaia begins asking — searching for unusual, unexplained, or interesting patterns and forming hypotheses (never alarms). |
+| [`knowledge-gap-engine.md`](knowledge-gap-engine.md) | The Value-of-Information rule for asking only the few questions whose answers would change a decision. |
+| [`gaia-collector.md`](gaia-collector.md) | The local Synopta → Canonical Snapshot bridge (the first real acquisition component). |
+| [`field-companion.md`](field-companion.md) | Gaia's device-independent presence on a greenhouse walk — when to speak, when to stay silent. |
+| [`observer-network.md`](observer-network.md) | The Observer Network concepts — how Gaia observes reality through interchangeable observers. |
+| [`observation-planner.md`](observation-planner.md) | Gaia's active-perception engine — deciding which observation is worth making, by whom, when, or not at all. |
 
 ## What a spec should contain
 
