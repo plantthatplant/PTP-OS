@@ -1,0 +1,36 @@
+name: collector-tests
+
+# Run the Collector's test suite automatically on every push and pull request that
+# touches the Collector, the shared Brain code it reuses, or this workflow.
+on:
+  push:
+    paths:
+      - "collector/**"
+      - "app/greenhouse_brain/**"
+      - ".github/workflows/collector-tests.yml"
+  pull_request:
+    paths:
+      - "collector/**"
+      - "app/greenhouse_brain/**"
+      - ".github/workflows/collector-tests.yml"
+  workflow_dispatch: {}   # allow manual runs from the Actions tab
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: ["3.11", "3.12"]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      # No third-party dependencies — the suite uses only the standard library.
+      - name: Run the Collector test suite
+        env:
+          PYTHONUTF8: "1"          # force UTF-8 I/O so non-ASCII (°C, å, ₂) is handled identically everywhere
+        run: python -m unittest discover -s collector/tests -t . -v
