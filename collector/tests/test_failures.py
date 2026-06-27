@@ -71,6 +71,17 @@ class Sources(unittest.TestCase):
         self.assertIsInstance(make_source("fixture"), FixtureSource)
         self.assertIsInstance(make_source("drop-folder", path="x"), DropFolderSource)
 
+    def test_drop_folder_rejects_oversized_file(self):
+        d = tempfile.mkdtemp()
+        try:
+            big = os.path.join(d, "big.json")
+            with open(big, "w", encoding="utf-8") as f:
+                f.write("{}")
+            with self.assertRaises(SourceError):
+                DropFolderSource(path=d, max_bytes=1).fetch()  # 2 bytes > 1
+        finally:
+            shutil.rmtree(d, ignore_errors=True)
+
 
 class CollectIntegration(unittest.TestCase):
     """Run the orchestrator with all outputs redirected to a temp dir."""

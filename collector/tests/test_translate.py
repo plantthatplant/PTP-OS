@@ -138,6 +138,15 @@ class Translate(unittest.TestCase):
         self.assertIn("coverage", snap)
         self.assertEqual(len(snap["structure"]["zones"]), 2)
 
+    def test_junk_payload_degrades_to_honest_emptiness(self):
+        # A source returning a non-dict (or nothing) must not crash translation; it yields a
+        # valid, observation-free snapshot whose coverage shows the houses were not observed.
+        for junk in (None, [], "not a dict", 42):
+            snap = to_snapshot(junk, FACILITY, "2026-06-27T06:00:00Z")
+            self.assertEqual(snap["greenhouse_id"], "gh-test")
+            self.assertEqual(snap["observations"], [])
+            self.assertTrue(snap["coverage"]["not_observed"])
+
 
 if __name__ == "__main__":
     unittest.main()
