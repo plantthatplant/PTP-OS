@@ -256,3 +256,44 @@ These come straight from [`CLAUDE.md`](../CLAUDE.md) and the snapshot spec, and 
   look."
 - **Fail safe.** One bad value is one gap; a dead source keeps yesterday's snapshot; an invalid
   snapshot is quarantined, never shown to Gaia.
+
+---
+
+## 10. Lifecycle of a snapshot
+
+What happens to one snapshot, from birth to consumption:
+
+1. **Acquired.** A `SynoptaSource` returns a raw reading. Its values were captured at various
+   `captured_at` times by the greenhouse.
+2. **Assembled.** `to_snapshot()` stamps it with a single `assembled_at` (the moment this
+   coherent view was composed) and turns the readings into observations. `captured_at` and
+   `assembled_at` are deliberately distinct (snapshot spec §7).
+3. **Validated.** It must round-trip through Gaia's importer and carry the required fields. If
+   not, it is written to `data/inbox/quarantine/` and its life ends there — it is never
+   published.
+4. **Compared.** It is diffed against the current `latest.json` (the previous snapshot).
+5. **Published — immutably.** The previous `latest.json` is copied to
+   `data/inbox/history/snapshot-<assembled_at>.json` (a permanent record of that moment), then
+   the new snapshot is written to `latest.json` **atomically** (temp file + `os.replace`), so a
+   reader never sees a half-written file.
+6. **Recorded.** One line is appended to `data/logs/collector-YYYYMMDD.jsonl`.
+7. **Consumed.** Gaia reads `latest.json` via `import_snapshot()` → `SnapshotProvider` → the
+   engines. The snapshot itself is never mutated; a correction is always a *new* snapshot.
+
+A snapshot is thus an **immutable record of a moment**. History accumulates; `latest.json` is
+only ever replaced wholesale.
+
+---
+
+## 11. Troubleshooting
+
+| Symptom | Likely cause | What to do |
+| --- | --- | --- |
+| Exit code **3**, `SOURCE-FAILED` | The source could not deliver (missing file, empty/again missing drop folder, unreachable API). | The previous `latest.json` is intentionally untouched. Check the source path / connectivity. Gaia keeps running on the last good snapshot. |
+| Exit code **2**, `QUARANTINED` | The translated snapshot failed validation. | Read the listed errors and the file in `data/inbox/quarantine/`. Usually a translation-mapping gap for a new export shape. `latest.json` is unchanged. |
+| Warnings like `… missing or unreadable` | A signal was absent or unparseable in the reading. | Expected, honest behaviour — the value became an absence, not a fabricated number. Investigate the sensor/export if it persists. |
+| Mojibake (`Kålaberga` shows as `K�laberga`) in the console | The terminal's code page, **not** the data. | Set `PYTHONUTF8=1` (and `chcp 65001` on Windows). The files on disk are always real UTF-8. |
+| `ModuleNotFoundError: collector` / `greenhouse_brain` | Run from the wrong directory, or Python path not set. | Run from the repo root, or use `python -m collector.collect`. The test suite and entry points bootstrap the path themselves. |
+| `'python' is not recognised` / opens Microsoft Store | Only the Windows Store alias is present. | Use the real interpreter at `%LOCALAPPDATA%\Programs\Python\Python312\python.exe`, or add it to PATH. |
+| `history/` not growing across rapid runs | Multiple runs share the same `assembled_at` second, so they archive to the same filename. | Expected. At the real once-a-morning cadence every run produces a distinct history file. |
+| A `.tmp` file left in `data/inbox/` | A crash *during* a write (rare). | Safe to delete; the atomic write means `latest.json` is still the last complete snapshot. |
