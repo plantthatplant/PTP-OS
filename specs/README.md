@@ -22,6 +22,7 @@ without prescribing throwaway implementation detail.
 | [`field-companion.md`](field-companion.md) | Gaia's device-independent presence on a greenhouse walk — when to speak, when to stay silent. |
 | [`observer-network.md`](observer-network.md) | The Observer Network concepts — how Gaia observes reality through interchangeable observers. |
 | [`observation-planner.md`](observation-planner.md) | Gaia's active-perception engine — deciding which observation is worth making, by whom, when, or not at all. |
+| [`business-knowledge-observer.md`](business-knowledge-observer.md) | The Google Drive observer — reads planning spreadsheets as Canonical Observations of intention; plan-vs-reality divergence becomes a Knowledge Gap. |
 
 ## What a spec should contain
 
