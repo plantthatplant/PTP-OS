@@ -28,3 +28,5 @@ class FixtureSource(SynoptaSource):
             raise SourceError(f"fixture not found: {self.path}") from e
         except json.JSONDecodeError as e:
             raise SourceError(f"fixture is not valid JSON: {e}") from e
+        except UnicodeDecodeError as e:
+            raise SourceError(f"fixture is not valid UTF-8: {e}") from e

@@ -44,9 +44,17 @@ def _read_json(path):
 
 
 def _write_json(path, data):
+    """Write JSON atomically: serialise to a temp file in the same directory, flush to
+    disk, then os.replace() into place. A reader (Gaia) therefore only ever sees the old
+    file or the complete new one — never a half-written snapshot — and two collectors racing
+    end with one clean winner rather than interleaved bytes. UTF-8, never ASCII-escaped."""
     os.makedirs(os.path.dirname(path), exist_ok=True)
-    with open(path, "w", encoding="utf-8") as f:
+    tmp = f"{path}.{os.getpid()}.tmp"
+    with open(tmp, "w", encoding="utf-8") as f:
         json.dump(data, f, indent=2, ensure_ascii=False)
+        f.flush()
+        os.fsync(f.fileno())
+    os.replace(tmp, path)  # atomic on the same filesystem (Windows & POSIX)
 
 
 def _archive_previous(prev: dict) -> str:

@@ -18,14 +18,20 @@ import os
 from .base import SynoptaSource, SourceError
 
 
+# A real greenhouse export is a handful of KB. Refuse anything wildly larger so a corrupt or
+# hostile file in the drop folder cannot exhaust memory in json.load.
+_MAX_EXPORT_BYTES = 16 * 1024 * 1024  # 16 MB — generous, but bounded
+
+
 class DropFolderSource(SynoptaSource):
     label = "drop-folder"
 
-    def __init__(self, path: str, pattern_exts=(".json",)):
+    def __init__(self, path: str, pattern_exts=(".json",), max_bytes: int = _MAX_EXPORT_BYTES):
         if not path:
             raise SourceError("drop-folder source needs a folder path (--path)")
         self.path = path
         self.exts = tuple(e.lower() for e in pattern_exts)
+        self.max_bytes = max_bytes
 
     def _newest_file(self) -> str:
         if not os.path.isdir(self.path):
@@ -41,11 +47,17 @@ class DropFolderSource(SynoptaSource):
 
     def fetch(self) -> dict:
         newest = self._newest_file()
+        size = os.path.getsize(newest)
+        if size > self.max_bytes:
+            raise SourceError(
+                f"export file is implausibly large ({size} bytes > {self.max_bytes}): {newest}")
         try:
             with open(newest, "r", encoding="utf-8") as f:
                 raw = json.load(f)
         except json.JSONDecodeError as e:
             raise SourceError(f"export file is not valid JSON ({newest}): {e}") from e
+        except UnicodeDecodeError as e:
+            raise SourceError(f"export file is not valid UTF-8 ({newest}): {e}") from e
         # Record which file we read, so provenance/logs can trace it. (Ignored downstream
         # if absent; never invents data.)
         if isinstance(raw, dict):
