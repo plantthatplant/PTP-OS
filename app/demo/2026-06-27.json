@@ -1,0 +1,77 @@
+{
+  "_comment": "Demo day 2026-06-27 — House 1 (Monstera propagation).",
+  "greenhouse_id": "gh-kalaberga",
+  "greenhouse_name": "Kålaberga",
+  "assembled_at": "2026-06-27T05:50:00Z",
+  "provenance": [
+    {
+      "source": "climate-feed",
+      "method": "measured"
+    },
+    {
+      "source": "grower:oskar",
+      "method": "observed-by-human"
+    },
+    {
+      "source": "weather",
+      "method": "forecast"
+    }
+  ],
+  "coverage": {
+    "not_observed": []
+  },
+  "structure": {
+    "zones": [
+      {
+        "id": "h1",
+        "name": "House 1 (propagation)",
+        "stage": "propagation",
+        "crop": "Monstera deliciosa cuttings"
+      }
+    ]
+  },
+  "observations": [
+    {
+      "subject": "h1",
+      "kind": "air-temperature",
+      "value": 24.0,
+      "unit": "°C",
+      "source": "climate-feed",
+      "method": "measured",
+      "confidence": "high"
+    },
+    {
+      "subject": "h1",
+      "kind": "relative-humidity",
+      "value": 92,
+      "unit": "%RH",
+      "source": "climate-feed",
+      "method": "measured",
+      "confidence": "high"
+    },
+    {
+      "subject": "h1",
+      "kind": "vent-position",
+      "value": "closed",
+      "source": "climate-feed",
+      "method": "measured",
+      "confidence": "high"
+    },
+    {
+      "subject": "h1",
+      "kind": "leaf-wetness",
+      "value": "canopy still wet after sunrise",
+      "source": "grower:oskar",
+      "method": "observed-by-human",
+      "confidence": "medium"
+    },
+    {
+      "subject": "site",
+      "kind": "afternoon-outlook",
+      "value": "clear and bright, a hot afternoon expected",
+      "source": "weather",
+      "method": "forecast",
+      "confidence": "medium"
+    }
+  ]
+}

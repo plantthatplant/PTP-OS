@@ -1,0 +1,40 @@
+{
+  "_comment": "A captured sample of what Claude Dispatch extracts from Synopta. Vendor-shaped on purpose (nested signals, string units, numeric house_id) so the provider must translate it into the domain model. Replace this fixture with a live Claude Dispatch call later; the translation does not change.",
+  "captured_at": "2026-06-27T05:48:00Z",
+  "site": "Kalaberga",
+  "houses": [
+    {
+      "house_id": "1",
+      "label": "Hus 1",
+      "signals": {
+        "air_temp":      { "value": 24.2, "unit": "°C" },
+        "rel_humidity":  { "value": 92,   "unit": "%" },
+        "vent_position": { "value": 0,    "unit": "%" },
+        "outside_temp":  { "value": 11.0, "unit": "°C" },
+        "alarm":         { "active": false, "text": null }
+      }
+    },
+    {
+      "house_id": "2",
+      "label": "Hus 2",
+      "signals": {
+        "air_temp":      { "value": 16.0, "unit": "°C" },
+        "rel_humidity":  { "value": 66,   "unit": "%" },
+        "vent_position": { "value": 20,   "unit": "%" },
+        "outside_temp":  { "value": 11.0, "unit": "°C" },
+        "alarm":         { "active": true, "text": "Sensor fault: temperature out of expected range" }
+      }
+    },
+    {
+      "house_id": "3",
+      "label": "Hus 3",
+      "signals": {
+        "air_temp":      { "value": 21.0, "unit": "°C" },
+        "rel_humidity":  { "value": 64,   "unit": "%" },
+        "vent_position": { "value": 30,   "unit": "%" },
+        "outside_temp":  { "value": 11.0, "unit": "°C" },
+        "alarm":         { "active": false, "text": null }
+      }
+    }
+  ]
+}

@@ -1,0 +1,33 @@
+{
+  "_comment": "YESTERDAY's snapshot — House 1 still calm (humidity within range, vent open, no wet canopy). Used to demonstrate 'what changed since yesterday'.",
+  "greenhouse_id": "gh-kalaberga",
+  "greenhouse_name": "Kalaberga",
+  "assembled_at": "2026-06-26T05:50:00Z",
+  "provenance": [
+    {"source": "climate-feed", "method": "measured"},
+    {"source": "grower:oskar", "method": "observed-by-human"}
+  ],
+  "coverage": { "not_observed": ["House 3 benches were not scouted"] },
+  "structure": {
+    "zones": [
+      {"id": "h1", "name": "House 1 (propagation)", "stage": "propagation", "crop": "mixed aroid cuttings"},
+      {"id": "h2", "name": "House 2 (growing on)", "stage": "vegetative", "crop": "young foliage plants"},
+      {"id": "h3", "name": "House 3 (finishing)", "stage": "finishing", "crop": "finishing batch — order #1043"}
+    ]
+  },
+  "observations": [
+    {"subject": "h1", "kind": "air-temperature", "value": 23.5, "unit": "°C", "source": "climate-feed", "method": "measured", "confidence": "high"},
+    {"subject": "h1", "kind": "relative-humidity", "value": 84, "unit": "%RH", "source": "climate-feed", "method": "measured", "confidence": "high"},
+    {"subject": "h1", "kind": "vent-position", "value": "30%", "source": "climate-feed", "method": "measured", "confidence": "high"},
+
+    {"subject": "h2", "kind": "air-temperature", "value": 21.0, "unit": "°C", "source": "climate-feed", "method": "measured", "confidence": "high"},
+    {"subject": "h2", "kind": "relative-humidity", "value": 64, "unit": "%RH", "source": "climate-feed", "method": "measured", "confidence": "high"},
+    {"subject": "h2", "kind": "vent-position", "value": "20%", "source": "climate-feed", "method": "measured", "confidence": "high"},
+
+    {"subject": "h3", "kind": "air-temperature", "value": 21.0, "unit": "°C", "source": "climate-feed", "method": "measured", "confidence": "high"},
+    {"subject": "h3", "kind": "relative-humidity", "value": 63, "unit": "%RH", "source": "climate-feed", "method": "measured", "confidence": "high"},
+    {"subject": "h3", "kind": "vent-position", "value": "30%", "source": "climate-feed", "method": "measured", "confidence": "high"},
+
+    {"subject": "site", "kind": "outside-temperature", "value": 12.0, "unit": "°C", "source": "weather", "method": "measured", "confidence": "medium"}
+  ]
+}

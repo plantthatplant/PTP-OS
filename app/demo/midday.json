@@ -1,0 +1,213 @@
+{
+  "_comment": "Sample canonical Greenhouse Snapshot (specs/greenhouse-snapshot.md). Stands in for a real live-observation file — none was provided. The importer reads any file in this format. Note the deliberate nulls (known-absent values).",
+  "greenhouse_id": "gh-kalaberga",
+  "greenhouse_name": "Kalaberga",
+  "assembled_at": "2026-06-27T12:00:00Z",
+  "provenance": [
+    {
+      "source": "climate-feed",
+      "method": "measured"
+    },
+    {
+      "source": "grower:oskar",
+      "method": "observed-by-human"
+    },
+    {
+      "source": "weather",
+      "method": "forecast"
+    }
+  ],
+  "coverage": {
+    "not_observed": [
+      "House 3 benches were not scouted this morning"
+    ]
+  },
+  "structure": {
+    "zones": [
+      {
+        "id": "h1",
+        "name": "House 1 (propagation)",
+        "stage": "propagation",
+        "crop": "mixed aroid cuttings"
+      },
+      {
+        "id": "h2",
+        "name": "House 2 (growing on)",
+        "stage": "vegetative",
+        "crop": "young foliage plants"
+      },
+      {
+        "id": "h3",
+        "name": "House 3 (finishing)",
+        "stage": "finishing",
+        "crop": "finishing batch — order #1043"
+      }
+    ]
+  },
+  "observations": [
+    {
+      "subject": "h1",
+      "kind": "air-temperature",
+      "value": 24.2,
+      "unit": "°C",
+      "captured_at": "2026-06-27T05:47:00Z",
+      "source": "climate-feed",
+      "method": "measured",
+      "confidence": "high"
+    },
+    {
+      "subject": "h1",
+      "kind": "relative-humidity",
+      "value": 80,
+      "unit": "%RH",
+      "captured_at": "2026-06-27T05:47:00Z",
+      "source": "climate-feed",
+      "method": "measured",
+      "confidence": "high"
+    },
+    {
+      "subject": "h1",
+      "kind": "vent-position",
+      "value": "40%",
+      "captured_at": "2026-06-27T05:47:00Z",
+      "source": "climate-feed",
+      "method": "measured",
+      "confidence": "high"
+    },
+    {
+      "subject": "h1",
+      "kind": "co2",
+      "value": null,
+      "absence": "known-absent (no CO2 sensor in House 1)"
+    },
+    {
+      "subject": "h1",
+      "kind": "light",
+      "value": null,
+      "absence": "known-absent (no light sensor in House 1)"
+    },
+    {
+      "subject": "h1",
+      "kind": "dev-note",
+      "value": "bench B has run a few days behind bench A for two batches now, same conditions",
+      "source": "grower:oskar",
+      "method": "observed-by-human",
+      "confidence": "medium"
+    },
+    {
+      "subject": "h2",
+      "kind": "air-temperature",
+      "value": 16.0,
+      "unit": "°C",
+      "captured_at": "2026-06-27T05:47:00Z",
+      "source": "climate-feed",
+      "method": "measured",
+      "confidence": "low"
+    },
+    {
+      "subject": "h2",
+      "kind": "relative-humidity",
+      "value": 66,
+      "unit": "%RH",
+      "captured_at": "2026-06-27T05:47:00Z",
+      "source": "climate-feed",
+      "method": "measured",
+      "confidence": "medium"
+    },
+    {
+      "subject": "h2",
+      "kind": "vent-position",
+      "value": "20%",
+      "captured_at": "2026-06-27T05:47:00Z",
+      "source": "climate-feed",
+      "method": "measured",
+      "confidence": "high"
+    },
+    {
+      "subject": "h2",
+      "kind": "alarm",
+      "value": "Sensor fault: temperature out of range",
+      "captured_at": "2026-06-27T05:47:00Z",
+      "source": "climate-feed",
+      "method": "measured",
+      "confidence": "high"
+    },
+    {
+      "subject": "h2",
+      "kind": "mother-stock",
+      "value": "mother plants vigorous and well-fed — prime for taking cuttings",
+      "source": "grower:oskar",
+      "method": "observed-by-human",
+      "confidence": "medium"
+    },
+    {
+      "subject": "h3",
+      "kind": "air-temperature",
+      "value": 21.0,
+      "unit": "°C",
+      "captured_at": "2026-06-27T05:47:00Z",
+      "source": "climate-feed",
+      "method": "measured",
+      "confidence": "high"
+    },
+    {
+      "subject": "h3",
+      "kind": "relative-humidity",
+      "value": 64,
+      "unit": "%RH",
+      "captured_at": "2026-06-27T05:47:00Z",
+      "source": "climate-feed",
+      "method": "measured",
+      "confidence": "high"
+    },
+    {
+      "subject": "h3",
+      "kind": "vent-position",
+      "value": "30%",
+      "captured_at": "2026-06-27T05:47:00Z",
+      "source": "climate-feed",
+      "method": "measured",
+      "confidence": "high"
+    },
+    {
+      "subject": "h3",
+      "kind": "light",
+      "value": null,
+      "absence": "known-absent (no light sensor in House 3)"
+    },
+    {
+      "subject": "h3",
+      "kind": "tone",
+      "value": "finishing batch still slightly soft",
+      "source": "grower:oskar",
+      "method": "observed-by-human",
+      "confidence": "medium"
+    },
+    {
+      "subject": "h3",
+      "kind": "order",
+      "value": "reserved for dispatch in 4 days (order #1043)",
+      "source": "orders",
+      "method": "imported",
+      "confidence": "high"
+    },
+    {
+      "subject": "site",
+      "kind": "outside-temperature",
+      "value": 11.0,
+      "unit": "°C",
+      "captured_at": "2026-06-27T05:30:00Z",
+      "source": "weather",
+      "method": "measured",
+      "confidence": "medium"
+    },
+    {
+      "subject": "site",
+      "kind": "afternoon-outlook",
+      "value": "clear and bright, a hot afternoon expected",
+      "source": "weather",
+      "method": "forecast",
+      "confidence": "medium"
+    }
+  ]
+}
