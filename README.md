@@ -26,6 +26,7 @@ not written down here, it is not yet part of PTP OS.
 | How we work | [`docs/project-rules.md`](docs/project-rules.md) |
 | How the system is structured | [`docs/architecture.md`](docs/architecture.md) |
 | How Synopta data reaches Gaia | [`docs/gaia-collector.md`](docs/gaia-collector.md) |
+| How Gaia walks the greenhouse with you | [`specs/field-companion.md`](specs/field-companion.md) |
 | What we are building and when | [`docs/roadmap.md`](docs/roadmap.md) |
 | The concepts the system reasons about | [`domain/`](domain/) |
 | Why key decisions were made | [`adr/`](adr/) |
@@ -49,6 +50,7 @@ ptp-os/
 ├── services/       Internal engines and supporting services (Context, Decision, Language, Memory, ...)
 ├── app/            The first working Greenhouse Brain (Sprint 1 prototype)
 ├── collector/      Gaia Collector — local Synopta → Canonical Snapshot bridge (+ its tests)
+├── companion/      Gaia Field Companion — device-independent walk interface (+ its tests)
 └── data/           Runtime output the Collector writes and Gaia reads (generated; git-ignored)
 ```
 
