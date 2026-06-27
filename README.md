@@ -25,6 +25,7 @@ not written down here, it is not yet part of PTP OS.
 | How Gaia learns over years | [`docs/gaia-learning-loop.md`](docs/gaia-learning-loop.md) |
 | How we work | [`docs/project-rules.md`](docs/project-rules.md) |
 | How the system is structured | [`docs/architecture.md`](docs/architecture.md) |
+| How Synopta data reaches Gaia | [`docs/gaia-collector.md`](docs/gaia-collector.md) |
 | What we are building and when | [`docs/roadmap.md`](docs/roadmap.md) |
 | The concepts the system reasons about | [`domain/`](domain/) |
 | Why key decisions were made | [`adr/`](adr/) |
@@ -46,7 +47,9 @@ ptp-os/
 ├── prompts/        Versioned prompts (one prompt = one feature)
 ├── integrations/   External data providers and services (Claude Dispatch today, Synopta tomorrow)
 ├── services/       Internal engines and supporting services (Context, Decision, Language, Memory, ...)
-└── app/            The first working Greenhouse Brain (Sprint 1 prototype)
+├── app/            The first working Greenhouse Brain (Sprint 1 prototype)
+├── collector/      Gaia Collector — local Synopta → Canonical Snapshot bridge (+ its tests)
+└── data/           Runtime output the Collector writes and Gaia reads (generated; git-ignored)
 ```
 
 Each folder contains its own `README.md` explaining its purpose and conventions.
@@ -63,6 +66,15 @@ No install, no dependencies, no API keys. It runs the full reasoning pipeline on
 data and returns a summary, three priorities, one concern, one recommendation, and a
 confidence. See [`app/README.md`](app/README.md) and
 [`docs/sprint-1-shortcuts.md`](docs/sprint-1-shortcuts.md).
+
+Collect greenhouse data from Synopta into the Canonical Snapshot Gaia consumes:
+
+```
+python collector/demo_pipeline.py    # Synopta → Collector → Snapshot → Gaia, end to end
+```
+
+See [`collector/README.md`](collector/README.md), [`docs/gaia-collector.md`](docs/gaia-collector.md),
+and [`specs/gaia-collector.md`](specs/gaia-collector.md).
 
 ---
 

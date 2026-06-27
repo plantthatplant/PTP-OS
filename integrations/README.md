@@ -13,7 +13,8 @@ one question for the rest of the system: *"What is happening in the greenhouse?"
 
 | Provider | Role | Status |
 | --- | --- | --- |
-| `ClaudeDispatchProvider` | Initial greenhouse data provider | Planned (Sprint 1) |
+| `ClaudeDispatchProvider` | Initial greenhouse data provider | Built (Sprint 1) |
+| `SnapshotProvider` | Serves any Canonical Snapshot to the engines | Built |
 | `SynoptaProvider` | Long-term provider via Synopta Pro/API | Future |
 
 The contract both must satisfy is defined in
@@ -21,7 +22,14 @@ The contract both must satisfy is defined in
 abstract providers is recorded in
 [`adr/ADR-002-provider-abstraction.md`](../adr/ADR-002-provider-abstraction.md).
 
-> No integration code exists yet. Sprint 0 establishes the foundation only.
+## Gaia Collector — the first real Synopta bridge
+
+[`collector/`](../collector/) is the local component that reads Synopta data and writes it as a
+Canonical Snapshot to `data/inbox/latest.json`, which Gaia consumes via `SnapshotProvider`
+unchanged. It contains no reasoning, no recommendations, and no AI — only acquisition and
+translation. Its vendor seam (`collector/sources/`) is built so the live Synopta source becomes
+a **single new module**. See [`specs/gaia-collector.md`](../specs/gaia-collector.md) and
+[`docs/gaia-collector.md`](../docs/gaia-collector.md).
 
 ## Conventions
 
