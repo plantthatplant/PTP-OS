@@ -27,12 +27,23 @@ from companion.walk import WalkSession, _short_subject
 from greenhouse_brain.snapshot_importer import import_snapshot
 from greenhouse_brain.providers.snapshot_provider import SnapshotProvider
 from greenhouse_brain.morning_analysis import MorningAnalysisEngine
-from greenhouse_brain import knowledge_gap, store
+from greenhouse_brain import knowledge_gap, store, fusion
 from greenhouse_brain.lifecycle import experiment_from_candidate
+from collector.observers import plan_vs_reality
 
 _LATEST = os.path.join(_paths.REPO_ROOT, "data", "inbox", "latest.json")
+_PLAN = os.path.join(_paths.REPO_ROOT, "data", "inbox", "plan-latest.json")
 _SAMPLE = os.path.join(_paths.APP_DIR, "sample_snapshot.json")
 _METRICS_LOG = os.path.join(_paths.APP_DIR, "data", "day-metrics.jsonl")
+
+
+def _load_plan():
+    """Intention from Google Drive (kept separate from reality). Empty if not synced yet."""
+    try:
+        with open(_PLAN, "r", encoding="utf-8") as f:
+            return json.load(f).get("observations", [])
+    except (FileNotFoundError, json.JSONDecodeError):
+        return []
 
 
 def _load_snapshot(override=None):
@@ -67,15 +78,20 @@ def main() -> int:
     alerts = notes = walk_phases = 0
     recs_surfaced = 1 if analysis.priorities else 0
 
-    # 06:30 — MORNING BRIEF.  One short read on the phone; one headline on the glasses.
+    # 06:30 — MORNING BRIEF.  Unified Morning Intelligence: reality + plan + memory, one voice.
     _phase(f"06:30  MORNING BRIEF   (source: {src})")
-    phone.show_summary(f"{_short_subject(analysis.greenhouse_name)} — {analysis.summary.split('.')[0]}.")
-    if analysis.priorities:
-        p = analysis.priorities[0]
-        phone.show_priority(f"{_short_subject(p.zone_name)} — {p.title}",
-                            detail=f"{p.action}  ·  confidence {p.confidence} · effort {p.effort} · {p.window}")
-    # Glasses: ONE line. The brief is on the phone; the glasses only point.
-    glasses.show_summary(f"{_short_subject(analysis.greenhouse_name)}: {walk._summary_headline()}")
+    plan_obs = _load_plan()
+    reality = [{"subject": o.subject, "kind": o.kind, "value": o.value} for o in snapshot.present()]
+    plan_gaps = plan_vs_reality.compare(plan_obs, reality, now_iso=snapshot.assembled_at)
+    brief = fusion.synthesize(analysis, coverage=snapshot.coverage(),
+                              reality=snapshot.reality_confidence(), plan_obs=plan_obs,
+                              plan_gaps=plan_gaps, memories=store.load_memories(),
+                              changes=None, questions=questions)
+    # Phone: the one thought, the one priority, the one question. Glasses: the one line.
+    phone.show_summary(brief.narrative)
+    phone.show_priority("Do first", detail=f"{brief.one_priority}  ·  why: {brief.one_explanation.split(';')[0]}")
+    phone.show_message("Ask today", brief.ask_today)
+    glasses.show_summary(brief.headline)
 
     # 07:00 — WALKING INSPECTION.  Silence by default; one earned question.
     _phase("07:00  WALKING INSPECTION"); walk_phases += 1

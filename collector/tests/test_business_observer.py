@@ -58,6 +58,19 @@ class Parsers(unittest.TestCase):
         self.assertEqual(obs["expected-revenue"]["unit"], "kr")
         self.assertEqual(obs["expected-labour"]["value"], 3.5)
 
+    def test_profitability(self):
+        rows = [
+            {"_r": 10, "A": "KLASSIFICERING PER KULTUR"},
+            {"_r": 11, "A": "Kultur", "B": "Typ", "C": "Marginal %", "F": "Klassificering", "G": "Atgard"},
+            {"_r": 12, "A": "Dahlia 15cm", "B": "Dahlia", "C": 0.33, "D": 19146, "E": 189, "F": "STJARNA",
+             "G": "Prioritera"},
+        ]
+        obs = gdo.parse_profitability(rows, SRC, AT)
+        self.assertEqual(obs[0]["subject"], "crop:Dahlia 15cm")
+        self.assertEqual(obs[0]["kind"], "expected-profitability")
+        self.assertEqual(obs[0]["value"], "STJARNA")
+        self.assertIn("margin 33%", obs[0]["notes"])
+
     def test_excel_date(self):
         self.assertEqual(xlsx_read.excel_date(46230), "2026-07-27")
         self.assertIsNone(xlsx_read.excel_date("not a date"))

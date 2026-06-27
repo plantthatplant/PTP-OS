@@ -151,6 +151,37 @@ def parse_financials(rows, source, captured_at) -> List[dict]:
     return out
 
 
+def parse_profitability(rows, source, captured_at, limit=20) -> List[dict]:
+    """'PORTFOLJMATRIS' classification table → per-crop expected profitability (intention)."""
+    h = None
+    for i, r in enumerate(rows):
+        if str(r.get("A", "")).strip().lower() == "kultur" and \
+                any("klassificering" in str(v).lower() for v in r.values()):
+            h = i
+            break
+    if h is None:
+        return []
+    out: List[dict] = []
+    for r in rows[h + 1:]:
+        crop = r.get("A")
+        if not crop:
+            break
+        margin, volume, contrib = r.get("C"), r.get("D"), r.get("E")
+        klass, action = r.get("F"), r.get("G")
+        if not klass:
+            continue
+        notes = "  ".join(x for x in [
+            f"margin {round(margin * 100)}%" if isinstance(margin, (int, float)) else "",
+            f"volume {int(volume)}" if isinstance(volume, (int, float)) else "",
+            f"contribution {round(contrib)} tkr" if isinstance(contrib, (int, float)) else "",
+            f"action: {action}" if action else ""] if x)
+        out.append(_obs(f"crop:{str(crop).strip()}", "expected-profitability", klass,
+                        captured_at, source, notes=notes))
+        if len(out) >= limit:
+            break
+    return out
+
+
 def _captured_at(path: str) -> str:
     try:
         ts = os.path.getmtime(path)
@@ -188,6 +219,9 @@ def observe_files(paths: List[str]) -> List[dict]:
         indata = _pick_sheet(path, "indata", "bokslut")
         if indata:
             observations += parse_financials(xlsx_read.read_sheet(path, indata), source, captured)
+        portfolio = _pick_sheet(path, "portfolj", "portfolio")
+        if portfolio:
+            observations += parse_profitability(xlsx_read.read_sheet(path, portfolio), source, captured)
     return observations
 
 
