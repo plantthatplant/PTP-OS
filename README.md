@@ -75,6 +75,12 @@ Collect greenhouse data from Synopta into the Canonical Snapshot Gaia consumes:
 python collector/demo_pipeline.py    # Synopta → Collector → Snapshot → Gaia, end to end
 ```
 
+Walk a whole day with the Founder Companion (phone brief + silent glasses walk + evening):
+
+```
+python companion/daily.py            # Oskar's day across phone + Even G2 surfaces
+```
+
 See [`collector/README.md`](collector/README.md), [`docs/gaia-collector.md`](docs/gaia-collector.md),
 and [`specs/gaia-collector.md`](specs/gaia-collector.md).
 

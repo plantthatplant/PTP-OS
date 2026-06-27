@@ -5,5 +5,6 @@ module here and nothing else. Gaia never imports any of these.
 """
 from .even_g2 import EvenG2Display
 from .console import ConsoleDisplay
+from .phone import PhoneDisplay
 
-__all__ = ["EvenG2Display", "ConsoleDisplay"]
+__all__ = ["EvenG2Display", "ConsoleDisplay", "PhoneDisplay"]
