@@ -1,0 +1,11 @@
+{
+  "package_id": "com.plantthatplant.gaia",
+  "edition": "202601",
+  "name": "gaia",
+  "version": "0.1.0",
+  "min_app_version": "0.1.0",
+  "tagline": "Your greenhouse, whispered.",
+  "description": "Gaia on Even G2 — one line of a head grower's judgement, when it matters, and silence the rest of the day. A window into Gaia; all intelligence lives in the Gaia API.",
+  "author": "Plant That Plant",
+  "entrypoint": "index.html"
+}
