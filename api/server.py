@@ -65,12 +65,24 @@ def make_handler(service: GaiaService, api_key: str, logger=None):
     class Handler(BaseHTTPRequestHandler):
         server_version = "GaiaAPI/v1"
 
+        # Browser clients (Lovable, the Even Hub web plugin) call cross-origin, so every
+        # response carries CORS headers and OPTIONS preflight is answered. The API stays the
+        # single source of truth; this only permits the window to reach it (Sprint 12 blocker #4).
+        def _cors(self):
+            origin = self.headers.get("Origin", "*")
+            self.send_header("Access-Control-Allow-Origin", origin)
+            self.send_header("Vary", "Origin")
+            self.send_header("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
+            self.send_header("Access-Control-Allow-Headers", "Authorization, Content-Type, X-API-Key")
+            self.send_header("Access-Control-Max-Age", "86400")
+
         def _send(self, status, obj):
             body = json.dumps(obj, ensure_ascii=False, indent=2).encode("utf-8")
             self.send_response(status)
             self.send_header("Content-Type", "application/json; charset=utf-8")
             self.send_header("Gaia-API-Version", API_VERSION)
             self.send_header("Content-Length", str(len(body)))
+            self._cors()
             self.end_headers()
             self.wfile.write(body)
 
@@ -79,8 +91,15 @@ def make_handler(service: GaiaService, api_key: str, logger=None):
             self.send_response(status)
             self.send_header("Content-Type", "text/html; charset=utf-8")
             self.send_header("Content-Length", str(len(body)))
+            self._cors()
             self.end_headers()
             self.wfile.write(body)
+
+        def do_OPTIONS(self):
+            # CORS preflight — never needs auth; answer it before the key check.
+            self.send_response(204)
+            self._cors()
+            self.end_headers()
 
         def _authed(self) -> bool:
             auth = self.headers.get("Authorization", "")
