@@ -18,6 +18,7 @@ it produces do not change.
 from __future__ import annotations
 
 import os
+import re
 from datetime import datetime, timezone
 from typing import Dict, List, Optional
 
@@ -190,6 +191,75 @@ def _captured_at(path: str) -> str:
         return datetime.now(timezone.utc).isoformat(timespec="seconds")
 
 
+# --- bench-overview sheets ("Översikt bord …") --------------------------------------------------
+# Single-sheet (Blad1) SPATIAL layouts: row 1 names the house; the cells map benches to their
+# planned contents. They carry intention — *which crops are planned in each house* — but no
+# structured table, so the dashboard/portfolio parsers above find nothing. We extract distinct
+# planned crops conservatively: skip the house header, bench descriptors ("15 rännebord",
+# "13 ebb och flod", "9 plåtbord"), bare numbers, and size fragments ("6-pack"). Honest absence
+# holds: a cell we can't recognise is simply not turned into an observation (never invented).
+
+_BENCH_WORDS = ("rännebord", "ränne", "ebb och flod", "plåtbord", "plåt", "plasthus", "bord")
+_SIZE_RE = re.compile(r"^\d+\s*-?\s*pack$", re.IGNORECASE)
+_NUM_RE = re.compile(r"^\d+([.,]\d+)?$")
+
+
+def _overview_house(header: str, filename: str) -> str:
+    """Map an overview sheet to a vendor-neutral zone id from its row-1 header, then its filename."""
+    for text in (header or "", filename or ""):
+        low = text.strip().lower()
+        for key in sorted(_ZONE_MAP, key=len, reverse=True):   # longest first: 'venlo golv' before 'venlo'
+            if key in low:
+                return _ZONE_MAP[key]
+        if "golv" in low and "venlo" in low:
+            return "venlo-golv"
+        if "plasthus" in low:
+            return "plast"
+        if "venlo" in low:
+            return "venlo"
+        if "mellanbygge" in low:
+            return "mellanbygge"
+    return "site"
+
+
+def _is_bench_descriptor(text: str) -> bool:
+    t = text.strip().lower()
+    if _NUM_RE.match(t):                                       # a bare number is layout, not a crop
+        return True
+    if t[:1].isdigit() and any(w in t for w in _BENCH_WORDS):  # "15 rännebord", "13 ebb och flod"
+        return True
+    return bool(_SIZE_RE.match(t))                             # "6-pack" size fragment
+
+
+def parse_bench_overview(rows, source, captured_at, filename=None) -> List[dict]:
+    """Distinct planned crops per house from a bench-overview ('Översikt bord …') sheet.
+
+    Each distinct crop name becomes a Canonical Observation: subject=<house>, kind=planned-crop,
+    value=<crop>, method=imported (intention, medium confidence). Returns [] for an empty sheet."""
+    if not rows:
+        return []
+    header = ""
+    for k, v in rows[0].items():
+        if k != "_r" and str(v).strip():
+            header = str(v).strip()
+            break
+    house = _overview_house(header, filename or "")
+    seen, out = set(), []
+    for r in rows:
+        for k, v in r.items():
+            if k == "_r":
+                continue
+            cell = str(v).strip()
+            if not cell or cell.lower() == header.lower() or _is_bench_descriptor(cell):
+                continue
+            key = cell.lower()
+            if key in seen:
+                continue
+            seen.add(key)
+            out.append(_obs(house, "planned-crop", cell, captured_at, source))
+    return out
+
+
 def _pick_sheet(path, *substrings):
     for name in xlsx_read.sheet_names(path):
         low = name.lower()
@@ -222,6 +292,12 @@ def observe_files(paths: List[str]) -> List[dict]:
         portfolio = _pick_sheet(path, "portfolj", "portfolio")
         if portfolio:
             observations += parse_profitability(xlsx_read.read_sheet(path, portfolio), source, captured)
+        # Bench-overview workbooks ("Översikt bord …") carry no structured table — extract the
+        # planned crops per house from their spatial layout instead of yielding nothing.
+        if "versikt" in os.path.basename(path).lower() and not (dash or indata or portfolio):
+            if names:
+                observations += parse_bench_overview(
+                    xlsx_read.read_sheet(path, names[0]), source, captured, os.path.basename(path))
     return observations
 
 

@@ -135,6 +135,52 @@ class RealFileIntegration(unittest.TestCase):
                 pass   # overview / non-plan sheets are fine to skip here
         self.assertTrue(any(o["kind"] == "expected-occupancy" for o in obs),
                         "no plan file in ~/Downloads yielded expected-occupancy")
+        # If a bench-overview workbook is present, it must now yield planned-crop observations
+        # (previously these produced zero).
+        if any("versikt" in os.path.basename(f).lower() for f in files):
+            self.assertTrue(any(o["kind"] == "planned-crop" for o in obs),
+                            "overview ('Översikt') sheets yielded no planned-crop observations")
+
+
+class BenchOverview(unittest.TestCase):
+    """The 'Översikt bord …' spatial sheets → distinct planned-crop observations per house."""
+    AT = "2026-06-27T10:00:00Z"
+
+    def test_planned_crops_skip_layout_and_dedupe(self):
+        rows = [
+            {"_r": 1, "B": "Hus 1"},                                   # house header
+            {"_r": 2, "B": "13 ebb och flod", "D": "14 ebb och flod"}, # bench descriptors → skip
+            {"_r": 3, "D": "Övervintrade Rudbeckia"},
+            {"_r": 5, "B": "Sommardahlia", "D": "Sommardahlia"},       # dup → once
+            {"_r": 6, "B": "Kryddamplar 2000 st totalt"},
+            {"_r": 7, "C": "6-pack"},                                  # size fragment → skip
+            {"_r": 8, "C": 5},                                         # bare number → skip
+        ]
+        obs = gdo.parse_bench_overview(rows, "google-drive:Översikt bord Hus 1.xlsx", self.AT,
+                                       "Översikt bord Hus 1.xlsx")
+        crops = [o["value"] for o in obs]
+        self.assertEqual({o["subject"] for o in obs}, {"h1"})
+        self.assertIn("Sommardahlia", crops)
+        self.assertIn("Övervintrade Rudbeckia", crops)
+        self.assertIn("Kryddamplar 2000 st totalt", crops)
+        self.assertNotIn("13 ebb och flod", crops)   # bench descriptor filtered
+        self.assertNotIn("6-pack", crops)            # size fragment filtered
+        self.assertNotIn("5", crops)                 # bare number filtered
+        self.assertEqual(crops.count("Sommardahlia"), 1)   # deduped
+        for o in obs:
+            self.assertEqual(o["kind"], "planned-crop")
+            self.assertEqual(o["method"], "imported")     # intention, not reality
+            self.assertEqual(o["confidence"], "medium")
+
+    def test_house_mapping(self):
+        self.assertEqual(gdo._overview_house("VENLO golv", ""), "venlo-golv")
+        self.assertEqual(gdo._overview_house("Plasthus, 5 st", ""), "plast")
+        self.assertEqual(gdo._overview_house("Hus 2", ""), "h2")
+        self.assertEqual(gdo._overview_house("", "Översikt bord Mellanbygge odlingsplan.xlsx"),
+                         "mellanbygge")
+
+    def test_empty_sheet_is_honest_absence(self):
+        self.assertEqual(gdo.parse_bench_overview([], "s", self.AT), [])
 
 
 if __name__ == "__main__":
