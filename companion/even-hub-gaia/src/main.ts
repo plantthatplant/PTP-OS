@@ -47,10 +47,23 @@ async function render(text: string): Promise<void> {
 }
 const wait = (ms: number) => new Promise<void>((r) => setTimeout(r, ms))
 
+// Fetch with a hard timeout — a hung server then fails gracefully ("unavailable")
+// instead of leaving the HUD stuck on "Thinking…".
+async function fetchT(url: string, opts: RequestInit, ms: number): Promise<Response> {
+  const ctrl = new AbortController()
+  const t = setTimeout(() => ctrl.abort(), ms)
+  try {
+    return await fetch(url, { ...opts, signal: ctrl.signal })
+  } finally {
+    clearTimeout(t)
+  }
+}
+
 // --- the Morning Brief (GET /api/v1/morning) ---
 async function fetchMorningBrief(): Promise<string | null> {
   try {
-    const res = await fetch(`${API_BASE}/api/v1/morning`, { headers: { Authorization: `Bearer ${API_KEY}` } })
+    const res = await fetchT(`${API_BASE}/api/v1/morning`,
+      { headers: { Authorization: `Bearer ${API_KEY}` } }, 15000)
     if (!res.ok) return null
     const d: any = await res.json()
     return [
@@ -84,12 +97,12 @@ function concatPcm(chunks: Uint8Array[]): Uint8Array {
 
 async function askGaia(pcm: Uint8Array): Promise<string> {
   try {
-    const res = await fetch(`${API_BASE}/api/v1/ask`, {
+    const res = await fetchT(`${API_BASE}/api/v1/ask`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/octet-stream', Authorization: `Bearer ${API_KEY}` },
       // concatPcm returns a fresh, fully-owned buffer — send it directly.
       body: pcm.buffer as ArrayBuffer,
-    })
+    }, 75000)   // server caps Whisper(30s)+Claude(60s); allow headroom, then fail gracefully
     if (!res.ok) return 'Gaia is unavailable right now.'
     const d: any = await res.json()
     return (d.answer || 'Gaia had no answer.').toString()
