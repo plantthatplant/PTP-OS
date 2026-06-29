@@ -110,7 +110,8 @@ class Economics(_IsolatedStore):
     def test_engine_imports_no_device(self):
         # Device-independence: the interaction engine must not import any device adapter.
         import companion.interaction_engine as ie
-        src = open(ie.__file__, encoding="utf-8").read()
+        with open(ie.__file__, encoding="utf-8") as f:
+            src = f.read()
         self.assertNotIn("even_g2", src)
         self.assertNotIn("devices", src)
 
