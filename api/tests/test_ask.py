@@ -4,11 +4,16 @@ All offline: the network hops (Whisper, Claude) are never reached because the mi
 empty-input guards fire first. We test the WAV framing and that every failure path is honest
 (returns a message, never a crash, never an invented answer).
 """
+import json
 import os
 import struct
+import threading
 import unittest
+import urllib.error
+import urllib.request
 
 from api import ask
+from api.server import serve
 
 
 class _StubService:
@@ -90,6 +95,72 @@ class HandleAskTest(unittest.TestCase):
     def test_unparseable_body_is_handled(self):
         out = ask.handle_ask(None, _StubService())
         self.assertIn("answer", out)  # empty question → honest message, no crash
+
+
+class LoggingTest(unittest.TestCase):
+    """One structured log line per call — outcome + timings, but NEVER content."""
+    def setUp(self):
+        self._saved = {k: os.environ.pop(k, None) for k in ("OPENAI_API_KEY", "ANTHROPIC_API_KEY")}
+
+    def tearDown(self):
+        for k, v in self._saved.items():
+            if v is not None:
+                os.environ[k] = v
+
+    def test_structured_outcome_without_content(self):
+        secret = "the canopy looks wet on bench three"
+        with self.assertLogs("gaia.ask", level="INFO") as cm:
+            ask.handle_ask({"question": secret}, _StubService())
+        line = cm.output[0]
+        event = json.loads(line.split("gaia.ask:")[-1] if "gaia.ask:" in line else line[line.index("{"):])
+        self.assertFalse(event["ok"])
+        self.assertEqual(event["failed_at"], "answer")    # no anthropic key
+        self.assertIn("total_ms", event)
+        self.assertEqual(event["chars_in"], len(secret))  # length only
+        # privacy: the grower's words never appear in the log line
+        self.assertNotIn(secret, line)
+
+
+class EndpointTest(unittest.TestCase):
+    """The /ask route end-to-end through the real server — covers the binary-body dispatch."""
+    def setUp(self):
+        self._saved = {k: os.environ.pop(k, None) for k in ("OPENAI_API_KEY", "ANTHROPIC_API_KEY")}
+        self.httpd = serve(host="127.0.0.1", port=0, service=_StubService(), api_key="k")
+        self.port = self.httpd.server_address[1]
+        self.t = threading.Thread(target=self.httpd.serve_forever, daemon=True)
+        self.t.start()
+
+    def tearDown(self):
+        self.httpd.shutdown()
+        for k, v in self._saved.items():
+            if v is not None:
+                os.environ[k] = v
+
+    def _post(self, data: bytes, ctype: str):
+        req = urllib.request.Request(f"http://127.0.0.1:{self.port}/api/v1/ask", data=data, method="POST")
+        req.add_header("Authorization", "Bearer k")
+        req.add_header("Content-Type", ctype)
+        with urllib.request.urlopen(req, timeout=5) as r:
+            return r.status, json.loads(r.read().decode("utf-8"))
+
+    def test_json_body_routes_and_answers_honestly(self):
+        status, out = self._post(b'{"question":"hi"}', "application/json")
+        self.assertEqual(status, 200)
+        self.assertIn("not configured", out["answer"])
+
+    def test_audio_body_passes_through_as_raw_bytes(self):
+        # octet-stream must NOT be JSON-parsed (it would 400); it reaches /ask as raw audio.
+        status, out = self._post(b"\x00\x01rawpcm", "application/octet-stream")
+        self.assertEqual(status, 200)
+        self.assertIn("speech-to-text", out["answer"])
+
+    def test_unauthorized_without_key(self):
+        req = urllib.request.Request(f"http://127.0.0.1:{self.port}/api/v1/ask",
+                                     data=b'{"question":"hi"}', method="POST")
+        req.add_header("Content-Type", "application/json")
+        with self.assertRaises(urllib.error.HTTPError) as cm:
+            urllib.request.urlopen(req, timeout=5)
+        self.assertEqual(cm.exception.code, 401)
 
 
 if __name__ == "__main__":

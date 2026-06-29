@@ -19,10 +19,21 @@ from __future__ import annotations
 
 import io
 import json
+import logging
 import os
 import struct
+import time
 import urllib.error
 import urllib.request
+
+# Observability for the voice round-trip. We log timings and outcomes, NEVER content —
+# no audio, no transcript, no answer text (the grower's words are private).
+_log = logging.getLogger("gaia.ask")
+if not _log.handlers:                       # be visible in dev too, without touching run.py
+    _h = logging.StreamHandler()
+    _h.setFormatter(logging.Formatter("%(asctime)s gaia.ask %(message)s"))
+    _log.addHandler(_h)
+    _log.setLevel(logging.INFO)
 
 _OPENAI_URL = "https://api.openai.com/v1/audio/transcriptions"
 _ANTHROPIC_URL = "https://api.anthropic.com/v1/messages"
@@ -157,20 +168,42 @@ def answer(question: str, service) -> str:
 
 # --------------------------------------------------------------------------- endpoint
 
+def _ms(t0: float) -> int:
+    return round((time.monotonic() - t0) * 1000)
+
+
 def handle_ask(body, service) -> dict:
     """POST /api/v1/ask — body is either JSON {"question": "..."} or raw PCM audio bytes.
 
     Returns {"question", "answer"}. On any failure returns {"answer": <honest message>, "error": ...}
     with HTTP 200 so the glasses always have a line to show (never a stack trace, never silence
-    pretending to be an answer)."""
+    pretending to be an answer). Emits one structured, content-free log line per call."""
+    t_start = time.monotonic()
+    event = {"source": "audio" if isinstance(body, (bytes, bytearray)) else "text",
+             "model": os.environ.get("GAIA_ANSWER_MODEL", _DEFAULT_MODEL)}
+    phase = "input"
     try:
         if isinstance(body, (bytes, bytearray)):
+            event["audio_bytes"] = len(body)
+            phase = "stt"
+            t = time.monotonic()
             question = transcribe(bytes(body))
+            event["stt_ms"] = _ms(t)
         elif isinstance(body, dict):
             question = (body.get("question") or body.get("text") or "").strip()
         else:
             question = ""
+        event["chars_in"] = len(question)        # length only — never the words themselves
+        phase = "answer"
+        t = time.monotonic()
         reply = answer(question, service)
+        event["answer_ms"] = _ms(t)
+        event["chars_out"] = len(reply)
+        event["ok"] = True
+        event["total_ms"] = _ms(t_start)
+        _log.info(json.dumps(event, ensure_ascii=False))
         return {"question": question, "answer": reply}
     except AskError as e:
+        event.update(ok=False, failed_at=phase, error=str(e), total_ms=_ms(t_start))
+        _log.info(json.dumps(event, ensure_ascii=False))
         return {"answer": str(e), "error": str(e)}
