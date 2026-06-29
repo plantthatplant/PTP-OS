@@ -38,10 +38,11 @@ def home_page(api_key: str) -> str:
 <div class="card"><div class="k">Answer today's question</div>
   <div id="q" class="muted">…</div>
   <div class="row"><input id="ans" placeholder="your answer (e.g. no, the canopy is dry)">
-  <button onclick="answer()">Send</button></div></div>
+  <button id="sendbtn" onclick="answer()">Send</button></div>
+  <div id="qmsg" class="muted"></div></div>
 <div class="card"><div class="k">Voice / note</div>
   <div class="row"><input id="note" placeholder="speak or type an observation…">
-  <button onclick="note()">Add</button></div><div id="notemsg" class="muted"></div></div>
+  <button id="addbtn" onclick="note()">Add</button></div><div id="notemsg" class="muted"></div></div>
 
 <script>
 const KEY = "__KEY__";
@@ -72,9 +73,33 @@ async function refresh(){
     document.getElementById("q").textContent = qs.length ? qs[0].text : "nothing worth asking today";
   }catch(e){ document.getElementById("health").textContent = "cannot reach Gaia: "+e; }
 }
-async function answer(){ if(!QID) return; const r=await post("/questions/"+QID+"/answer",{answer:document.getElementById("ans").value});
-  document.getElementById("q").textContent = "answered — confidence "+r.confidence_before+" → "+r.confidence_after; refresh(); }
-async function note(){ const t=document.getElementById("note").value; if(!t) return;
-  await post("/voice-notes",{text:t,subject:"site"}); document.getElementById("notemsg").textContent="noted ✓"; document.getElementById("note").value=""; }
+async function answer(){
+  const msg=document.getElementById("qmsg"), inp=document.getElementById("ans"), btn=document.getElementById("sendbtn");
+  if(!QID){ msg.textContent="No question to answer right now."; return; }
+  const val=inp.value.trim();
+  if(!val){ msg.textContent="Type your answer first."; inp.focus(); return; }
+  btn.disabled=true; msg.textContent="sending…";
+  try{
+    const r=await post("/questions/"+QID+"/answer",{answer:val});
+    if(r.error){ msg.textContent="Could not record that — "+r.error; return; }
+    // persistent confirmation in its OWN element, so the auto-refresh of the question never wipes it
+    msg.textContent="Answered ✓  confidence "+r.confidence_before+" → "+r.confidence_after+(r.worthwhile?"  (worthwhile)":"");
+    inp.value="";
+    await refresh();
+  }catch(e){ msg.textContent="Send failed — "+e; }
+  finally{ btn.disabled=false; }
+}
+async function note(){
+  const inp=document.getElementById("note"), m=document.getElementById("notemsg"), btn=document.getElementById("addbtn");
+  const t=inp.value.trim();
+  if(!t){ m.textContent="Type an observation first."; inp.focus(); return; }
+  btn.disabled=true; m.textContent="adding…";
+  try{
+    const r=await post("/voice-notes",{text:t,subject:"site"});
+    m.textContent=r.accepted?"Noted ✓ — saved as an observation.":"Could not save that note.";
+    if(r.accepted) inp.value="";
+  }catch(e){ m.textContent="Could not save — "+e; }
+  finally{ btn.disabled=false; }
+}
 refresh(); setInterval(refresh, 60000);
 </script></body></html>""".replace("__KEY__", api_key)
