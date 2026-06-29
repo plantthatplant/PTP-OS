@@ -179,5 +179,64 @@ class EndpointTest(unittest.TestCase):
         self.assertEqual(cm.exception.code, 401)
 
 
+class _FakeResp:
+    def __init__(self, body): self._b = body
+    def __enter__(self): return self
+    def __exit__(self, *a): return False
+    def read(self): return self._b
+
+
+class RetryTest(unittest.TestCase):
+    """_http_post retries only fast transient failures, and never timeouts."""
+    def _patch(self, fn):
+        self._orig = ask.urllib.request.urlopen
+        ask.urllib.request.urlopen = fn
+        self.addCleanup(lambda: setattr(ask.urllib.request, "urlopen", self._orig))
+
+    def test_retries_connection_reset_then_succeeds(self):
+        calls = {"n": 0}
+        def fake(req, timeout=None):
+            calls["n"] += 1
+            if calls["n"] == 1:
+                raise ConnectionResetError("reset")
+            return _FakeResp(b'{"ok": 1}')
+        self._patch(fake)
+        out = json.loads(ask._http_post("http://x", b"d", {}, timeout=1, retries=1))
+        self.assertEqual(out, {"ok": 1})
+        self.assertEqual(calls["n"], 2)            # retried once
+
+    def test_retries_503_then_succeeds(self):
+        calls = {"n": 0}
+        def fake(req, timeout=None):
+            calls["n"] += 1
+            if calls["n"] == 1:
+                raise urllib.error.HTTPError("http://x", 503, "overloaded", {}, None)
+            return _FakeResp(b'{"ok": 2}')
+        self._patch(fake)
+        out = json.loads(ask._http_post("http://x", b"d", {}, timeout=1, retries=1))
+        self.assertEqual(out, {"ok": 2})
+        self.assertEqual(calls["n"], 2)
+
+    def test_does_not_retry_4xx(self):
+        calls = {"n": 0}
+        def fake(req, timeout=None):
+            calls["n"] += 1
+            raise urllib.error.HTTPError("http://x", 400, "bad request", {}, None)
+        self._patch(fake)
+        with self.assertRaises(urllib.error.HTTPError):
+            ask._http_post("http://x", b"d", {}, timeout=1, retries=1)
+        self.assertEqual(calls["n"], 1)            # permanent → no retry
+
+    def test_does_not_retry_timeout(self):
+        calls = {"n": 0}
+        def fake(req, timeout=None):
+            calls["n"] += 1
+            raise TimeoutError("slow")
+        self._patch(fake)
+        with self.assertRaises(TimeoutError):
+            ask._http_post("http://x", b"d", {}, timeout=1, retries=1)
+        self.assertEqual(calls["n"], 1)            # fail fast — the grower doesn't wait twice
+
+
 if __name__ == "__main__":
     unittest.main()
