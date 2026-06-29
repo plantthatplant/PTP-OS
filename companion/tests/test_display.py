@@ -53,7 +53,8 @@ class Independence(unittest.TestCase):
         for root, _, files in os.walk(brain_dir):
             for fn in files:
                 if fn.endswith(".py"):
-                    src = open(os.path.join(root, fn), encoding="utf-8").read()
+                    with open(os.path.join(root, fn), encoding="utf-8") as f:
+                        src = f.read()
                     if "import companion" in src or "from companion" in src:
                         offenders.append(fn)
         self.assertEqual(offenders, [], f"Brain imports the Companion in: {offenders}")

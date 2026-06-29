@@ -124,8 +124,17 @@ class RealFileIntegration(unittest.TestCase):
         files = glob.glob(os.path.join(dl, "*dlingsplan*.xlsx"))
         if not files:
             self.skipTest("no real plan file in ~/Downloads")
-        obs = gdo.observe_files(files[:1])
-        self.assertTrue(any(o["kind"] == "expected-occupancy" for o in obs))
+        # The folder may hold several plan-shaped sheets (per-house overviews, older years)
+        # the observer isn't meant to parse. Assert it extracts expected-occupancy from at
+        # least one — proving it handles the real master plan — rather than an arbitrary glob[0].
+        obs = []
+        for f in files:
+            try:
+                obs.extend(gdo.observe_files([f]))
+            except Exception:
+                pass   # overview / non-plan sheets are fine to skip here
+        self.assertTrue(any(o["kind"] == "expected-occupancy" for o in obs),
+                        "no plan file in ~/Downloads yielded expected-occupancy")
 
 
 if __name__ == "__main__":
