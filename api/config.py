@@ -16,6 +16,28 @@ def _env(name, default):
     return v if v not in (None, "") else default
 
 
+def load_env_file(path: str | None = None) -> None:
+    """Load KEY=VALUE lines from a git-ignored `.env` at the repo root into os.environ, WITHOUT
+    overriding anything already set in the real environment (so an explicit `FOO=… python -m
+    api.run` still wins). This is where secrets belong — OPENAI_API_KEY, ANTHROPIC_API_KEY,
+    GAIA_API_KEY — a local file git ignores, never committed, never in code, never returned by
+    the API. Missing file is fine (the defaults still run)."""
+    path = path or os.path.join(_paths.REPO_ROOT, ".env")
+    try:
+        with open(path, "r", encoding="utf-8") as f:
+            for raw in f:
+                line = raw.strip()
+                if not line or line.startswith("#") or "=" not in line:
+                    continue
+                key, _, val = line.partition("=")
+                key = key.strip()
+                val = val.strip().strip('"').strip("'")
+                if key and key not in os.environ:
+                    os.environ[key] = val
+    except FileNotFoundError:
+        pass
+
+
 @dataclass
 class Config:
     host: str

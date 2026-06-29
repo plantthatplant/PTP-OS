@@ -198,4 +198,6 @@ def serve(host="127.0.0.1", port=8000, service=None, api_key=None, logger=None):
 
 
 if __name__ == "__main__":
+    from .config import load_env_file
+    load_env_file()                      # secrets from the git-ignored .env (real env still wins)
     serve().serve_forever()

@@ -19,7 +19,7 @@ import time
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from api.config import Config
+from api.config import Config, load_env_file
 from api import health, server
 from api.service import GaiaService
 
@@ -102,6 +102,7 @@ def _collection_loop(cfg: Config, event, stop: threading.Event):
 
 
 def main() -> int:
+    load_env_file()                      # secrets from the git-ignored .env (real env still wins)
     cfg = Config.from_env()
     health.STATE.version = cfg.version
     _configure_paths(cfg)
