@@ -18,6 +18,7 @@ from urllib.parse import urlparse, parse_qs
 
 from .service import GaiaService
 from .web import home_page
+from . import ask as _ask
 
 API_VERSION = "v1"
 _DEV_KEY = "gaia-dev-key"
@@ -50,6 +51,8 @@ def _routes():
          lambda s, m, q, b: (200, s.answer_question(m["id"], (b or {}).get("answer", "")))),
         ("POST", p(r"/voice-notes"),
          lambda s, m, q, b: (201, s.voice_note((b or {}).get("text", ""), (b or {}).get("subject", "site")))),
+        # Talk to Gaia: body is JSON {"question": "..."} or raw PCM audio bytes (glasses mic).
+        ("POST", p(r"/ask"), lambda s, m, q, b: (200, _ask.handle_ask(b, s))),
     ]
 
 
@@ -107,11 +110,17 @@ def make_handler(service: GaiaService, api_key: str, logger=None):
             if method == "POST":
                 length = int(self.headers.get("Content-Length", 0) or 0)
                 raw = self.rfile.read(length) if length else b""
-                try:
-                    body = json.loads(raw or b"null")
-                except json.JSONDecodeError:
-                    self._send(400, _err("bad_request", "body must be valid JSON"))
-                    return self._log(method, parsed.path, 400, t0, "bad_json")
+                ctype = self.headers.get("Content-Type", "")
+                # Binary bodies (e.g. glasses-mic audio for /ask) pass through as raw bytes;
+                # everything else is JSON, as before.
+                if ctype.startswith("application/octet-stream") or ctype.startswith("audio/"):
+                    body = raw
+                else:
+                    try:
+                        body = json.loads(raw or b"null")
+                    except json.JSONDecodeError:
+                        self._send(400, _err("bad_request", "body must be valid JSON"))
+                        return self._log(method, parsed.path, 400, t0, "bad_json")
             status, obj, error, path_matched = None, None, None, False
             for rm, rx, fn in routes:
                 mobj = rx.match(parsed.path)
