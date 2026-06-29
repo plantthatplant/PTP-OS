@@ -1,0 +1,36 @@
+name: even-hub-app
+
+# Type-check and build the Even G2 web app (companion/even-hub-gaia) on every change to it.
+# The Python suites don't cover the TypeScript client; this gates it so a TS/SDK regression
+# can't reach main. Pack/upload (the .ehpk) needs an Even developer login and stays manual.
+on:
+  push:
+    paths:
+      - "companion/even-hub-gaia/**"
+      - ".github/workflows/even-hub-app.yml"
+  pull_request:
+    paths:
+      - "companion/even-hub-gaia/**"
+      - ".github/workflows/even-hub-app.yml"
+  workflow_dispatch: {}
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: companion/even-hub-gaia
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: companion/even-hub-gaia/package-lock.json
+
+      - name: Install (from the committed lockfile)
+        run: npm ci
+
+      - name: Type-check + build
+        run: npm run build
