@@ -24,6 +24,10 @@ All optional; defaults are safe for a local single-user PC. Nothing is hardcoded
 | Variable | Default | Purpose |
 | --- | --- | --- |
 | `GAIA_API_KEY` | `gaia-dev-key` | Bearer/X-API-Key for the API. **Set a real value for production.** |
+| `GAIA_CORS_ORIGINS` | `*` (reflect any) | comma-separated browser-origin allowlist for production (Lovable + Even Hub origins); other origins get no CORS headers |
+| `OPENAI_API_KEY` | — | speech-to-text for `POST /api/v1/ask` (talk to Gaia). Absent → `/ask` answers honestly that voice is unconfigured |
+| `ANTHROPIC_API_KEY` | — | Gaia's reasoning for `/api/v1/ask` |
+| `GAIA_ANSWER_MODEL` | `claude-opus-4-8` | Claude model `/ask` uses (e.g. `claude-sonnet-4-6` for lower on-glasses latency) |
 | `GAIA_HOST` / `GAIA_PORT` | `127.0.0.1` / `8000` | API bind address |
 | `GAIA_DATA_DIR` | `<repo>/data` | runtime data (inbox snapshots, logs) |
 | `GAIA_APP_DATA_DIR` | `<repo>/app/data` | **persisted Memory / Learning / Observations** |
@@ -104,7 +108,8 @@ re-collection), so a reboot resumes Gaia automatically.
    (Task Scheduler) in an elevated shell — registering it needs admin (was access-denied here).
 3. **Default dev API key.** Set `GAIA_API_KEY` to a real value before relying on it.
 4. **Local-only, no TLS.** The API binds `127.0.0.1` for on-PC use; remote/Lovable-cloud access
-   needs a hosted URL, TLS, CORS, and per-client keys (auth roadmap in `docs/gaia-api.md`).
+   needs a hosted URL, TLS, and per-client keys (auth roadmap in `docs/gaia-api.md`). CORS is
+   handled — set `GAIA_CORS_ORIGINS` to the browser origins once hosted.
 5. **Lovable not yet connected.** The built-in page bridges it; the official Control Center is
    wired when the Lovable project is reachable (contract in `docs/lovable-integration.md`).
 

@@ -212,3 +212,6 @@ app/.state/
 Thumbs.db
 # Windows per-folder settings.
 desktop.ini
+
+# Even Hub package artifacts
+*.ehpk

@@ -27,7 +27,7 @@ confidence, questions, gaps, learning) — never storage paths, vendor names, or
 
 **Design properties (all met):** stateless (state lives in the snapshot + store, not the API),
 simple (stdlib), versioned (`/api/v1`), observable (uniform JSON + version header + error
-envelope), documented (this file), testable (8 service tests, isolated store), backwards-
+envelope), documented (this file), testable (api suite covers the service, `/ask`, and CORS with an isolated store), backwards-
 compatible (additive-only, §6), and provider-/observer-/client-independent (§ the three
 questions).
 
@@ -47,6 +47,7 @@ questions).
 | POST | `/api/v1/voice-notes` | `{ "text": "...", "subject": "h1" }` → the API makes a Canonical Observation |
 | GET | `/api/v1/companion` | One message + urgency + confidence + acknowledgement state (Even G2) |
 | GET | `/api/v1/evening` | Daily review: lessons today, calibration, open experiments |
+| POST | `/api/v1/ask` | **Talk to Gaia.** JSON `{ "question": "..." }` *or* raw PCM mic audio (`application/octet-stream`) → `{ "question", "answer" }`. The server transcribes (OpenAI Whisper) and answers (Claude), grounded only in `morning`/`houses`/`memory`. Honest on missing keys/failed hops (HTTP 200 with a plain message). |
 
 Run it: `python api/server.py` · End-to-end demo (many clients, one API): `python api/demo.py`.
 
@@ -88,6 +89,22 @@ POST /api/v1/questions/kq-.../answer   { "answer": "No, the canopy is dry" }
   independently; **scopes** (read-only vs observation-write vs answer); rotate via env/secret
   store; TLS in front; OAuth/mTLS for third parties. Keys are credentials — never in code, never
   in a client bundle; the API never returns them.
+
+### Configuration (environment)
+
+All server-side; clients never see the third-party keys.
+
+| Variable | Default | Purpose |
+| --- | --- | --- |
+| `GAIA_API_KEY` | dev key | the API key clients send as `Authorization: Bearer` / `X-API-Key` |
+| `GAIA_CORS_ORIGINS` | `*` (reflect any) | comma-separated browser-origin allowlist for production (e.g. the Lovable + Even Hub origins); other origins get no CORS headers |
+| `PTP_PROVIDER` | `mock` | data source for the Brain (`mock` until Synopta is wired) |
+| `OPENAI_API_KEY` | — | speech-to-text for `/ask` (absent → `/ask` answers honestly that voice is unconfigured) |
+| `ANTHROPIC_API_KEY` | — | Gaia's reasoning for `/ask` |
+| `GAIA_ANSWER_MODEL` | `claude-opus-4-8` | the Claude model `/ask` uses (e.g. `claude-sonnet-4-6` for lower on-glasses latency) |
+
+`/ask` emits one structured, **content-free** log line per call via the `gaia.ask` logger
+(per-hop timings + outcome; never the audio, transcript, or answer text).
 
 ## 5. Versioning strategy
 

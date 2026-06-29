@@ -18,6 +18,7 @@ from urllib.parse import urlparse, parse_qs
 
 from .service import GaiaService
 from .web import home_page
+from . import ask as _ask
 
 API_VERSION = "v1"
 _DEV_KEY = "gaia-dev-key"
@@ -50,6 +51,8 @@ def _routes():
          lambda s, m, q, b: (200, s.answer_question(m["id"], (b or {}).get("answer", "")))),
         ("POST", p(r"/voice-notes"),
          lambda s, m, q, b: (201, s.voice_note((b or {}).get("text", ""), (b or {}).get("subject", "site")))),
+        # Talk to Gaia: body is JSON {"question": "..."} or raw PCM audio bytes (glasses mic).
+        ("POST", p(r"/ask"), lambda s, m, q, b: (200, _ask.handle_ask(b, s))),
     ]
 
 
@@ -57,13 +60,40 @@ def _err(code, message):
     return {"error": {"code": code, "message": message}}
 
 
+def _cors_origins():
+    # "*" (default) reflects any Origin — fine for dev / token-authed API. In production set
+    # GAIA_CORS_ORIGINS to a comma-separated allowlist (e.g. the Lovable + Even Hub origins).
+    return [o.strip() for o in os.environ.get("GAIA_CORS_ORIGINS", "*").split(",") if o.strip()]
+
+
 def make_handler(service: GaiaService, api_key: str, logger=None):
     routes = _routes()
     log = logger or (lambda rec: None)
     home = home_page(api_key)
+    cors_origins = _cors_origins()
 
     class Handler(BaseHTTPRequestHandler):
         server_version = "GaiaAPI/v1"
+
+        # Browser clients (Lovable, the Even Hub web plugin) call cross-origin, so every
+        # response carries CORS headers and OPTIONS preflight is answered. The API stays the
+        # single source of truth; this only permits the window to reach it (Sprint 12 blocker #4).
+        # Origins are an env-configurable allowlist ("*" reflects any, the default).
+        def _cors(self):
+            origin = self.headers.get("Origin", "")
+            if cors_origins == ["*"]:
+                allow = origin or "*"
+            elif origin in cors_origins:
+                allow = origin
+            else:
+                allow = ""                      # disallowed cross-origin → no CORS headers
+            if not allow:
+                return
+            self.send_header("Access-Control-Allow-Origin", allow)
+            self.send_header("Vary", "Origin")
+            self.send_header("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
+            self.send_header("Access-Control-Allow-Headers", "Authorization, Content-Type, X-API-Key")
+            self.send_header("Access-Control-Max-Age", "86400")
 
         def _send(self, status, obj):
             body = json.dumps(obj, ensure_ascii=False, indent=2).encode("utf-8")
@@ -71,6 +101,7 @@ def make_handler(service: GaiaService, api_key: str, logger=None):
             self.send_header("Content-Type", "application/json; charset=utf-8")
             self.send_header("Gaia-API-Version", API_VERSION)
             self.send_header("Content-Length", str(len(body)))
+            self._cors()
             self.end_headers()
             self.wfile.write(body)
 
@@ -79,8 +110,15 @@ def make_handler(service: GaiaService, api_key: str, logger=None):
             self.send_response(status)
             self.send_header("Content-Type", "text/html; charset=utf-8")
             self.send_header("Content-Length", str(len(body)))
+            self._cors()
             self.end_headers()
             self.wfile.write(body)
+
+        def do_OPTIONS(self):
+            # CORS preflight — never needs auth; answer it before the key check.
+            self.send_response(204)
+            self._cors()
+            self.end_headers()
 
         def _authed(self) -> bool:
             auth = self.headers.get("Authorization", "")
@@ -107,11 +145,17 @@ def make_handler(service: GaiaService, api_key: str, logger=None):
             if method == "POST":
                 length = int(self.headers.get("Content-Length", 0) or 0)
                 raw = self.rfile.read(length) if length else b""
-                try:
-                    body = json.loads(raw or b"null")
-                except json.JSONDecodeError:
-                    self._send(400, _err("bad_request", "body must be valid JSON"))
-                    return self._log(method, parsed.path, 400, t0, "bad_json")
+                ctype = self.headers.get("Content-Type", "")
+                # Binary bodies (e.g. glasses-mic audio for /ask) pass through as raw bytes;
+                # everything else is JSON, as before.
+                if ctype.startswith("application/octet-stream") or ctype.startswith("audio/"):
+                    body = raw
+                else:
+                    try:
+                        body = json.loads(raw or b"null")
+                    except json.JSONDecodeError:
+                        self._send(400, _err("bad_request", "body must be valid JSON"))
+                        return self._log(method, parsed.path, 400, t0, "bad_json")
             status, obj, error, path_matched = None, None, None, False
             for rm, rx, fn in routes:
                 mobj = rx.match(parsed.path)
