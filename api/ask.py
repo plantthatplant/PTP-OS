@@ -10,8 +10,10 @@ the API stays install-free (no SDKs):
 Honest by construction: if a key is missing or a hop fails, it says so plainly and never
 invents an answer. The glasses are a window — all the reasoning is Claude's, over Gaia's data.
 
-Keys (server-side env only — never sent to the glasses):
-    OPENAI_API_KEY       Whisper STT
+Keys & config (server-side env only — never sent to the glasses):
+    GAIA_STT_PROVIDER    speech-to-text engine: openai (default) | whisperflow
+    OPENAI_API_KEY       Whisper STT  (openai provider)
+    WHISPERFLOW_URL      WhisperFlow endpoint  (whisperflow provider; + optional WHISPERFLOW_API_KEY/MODEL)
     ANTHROPIC_API_KEY    Claude
     GAIA_ANSWER_MODEL    Claude model (default claude-opus-4-8)
 """
@@ -98,37 +100,86 @@ def _pcm_to_wav(pcm: bytes) -> bytes:
     return header + pcm
 
 
-def transcribe(pcm: bytes) -> str:
-    """PCM bytes from the glasses -> the words the grower spoke (OpenAI Whisper)."""
-    key = os.environ.get("OPENAI_API_KEY", "").strip()
-    if not key:
-        raise AskError("speech-to-text is not configured (OPENAI_API_KEY not set)")
-    if not pcm:
-        raise AskError("no audio received")
-    if len(pcm) > _MAX_AUDIO_BYTES:
-        raise AskError("that was too long to transcribe — ask a shorter question")
-
-    wav = _pcm_to_wav(pcm)
+def _multipart_wav(wav: bytes, fields: dict):
+    """Build a multipart/form-data body with text `fields` + a WAV `file`. Returns (body, boundary)."""
     boundary = "----gaia-voice-boundary"
     parts = io.BytesIO()
-    parts.write(f"--{boundary}\r\n".encode())
-    parts.write(b'Content-Disposition: form-data; name="model"\r\n\r\nwhisper-1\r\n')
+    for name, value in fields.items():
+        parts.write(f"--{boundary}\r\n".encode())
+        parts.write(f'Content-Disposition: form-data; name="{name}"\r\n\r\n{value}\r\n'.encode())
     parts.write(f"--{boundary}\r\n".encode())
     parts.write(b'Content-Disposition: form-data; name="file"; filename="speech.wav"\r\n')
     parts.write(b"Content-Type: audio/wav\r\n\r\n")
     parts.write(wav)
     parts.write(f"\r\n--{boundary}--\r\n".encode())
-    body = parts.getvalue()
+    return parts.getvalue(), boundary
 
+
+def _read_transcript(raw: bytes) -> str:
+    data = json.loads(raw.decode("utf-8"))
+    return (data.get("text") or data.get("transcript") or "").strip()   # OpenAI-compatible {text}
+
+
+def _stt_openai(wav: bytes) -> str:
+    key = os.environ.get("OPENAI_API_KEY", "").strip()
+    if not key:
+        raise AskError("speech-to-text is not configured (OPENAI_API_KEY not set)")
+    body, boundary = _multipart_wav(wav, {"model": "whisper-1"})
     headers = {"Authorization": f"Bearer {key}",
                "Content-Type": f"multipart/form-data; boundary={boundary}"}
     try:
-        data = json.loads(_http_post(_OPENAI_URL, body, headers, timeout=30).decode("utf-8"))
+        return _read_transcript(_http_post(_OPENAI_URL, body, headers, timeout=30))
     except urllib.error.HTTPError as e:
         raise AskError(f"speech-to-text failed ({e.code})")
+    except AskError:
+        raise
     except Exception:
         raise AskError("could not reach the speech-to-text service")
-    return (data.get("text") or "").strip()
+
+
+def _stt_whisperflow(wav: bytes) -> str:
+    """WhisperFlow STT — an alternate/self-hosted Whisper service (GAIA_STT_PROVIDER=whisperflow).
+    Expects an OpenAI-compatible transcription endpoint (multipart `file` → JSON `{text}`); if
+    WhisperFlow's request/response shape differs, THIS is the one place to adapt it. Config:
+    WHISPERFLOW_URL (required), WHISPERFLOW_API_KEY (optional), WHISPERFLOW_MODEL (optional)."""
+    url = os.environ.get("WHISPERFLOW_URL", "").strip()
+    if not url:
+        raise AskError("speech-to-text is not configured (WHISPERFLOW_URL not set)")
+    fields = {}
+    model = os.environ.get("WHISPERFLOW_MODEL", "").strip()
+    if model:
+        fields["model"] = model
+    body, boundary = _multipart_wav(wav, fields)
+    headers = {"Content-Type": f"multipart/form-data; boundary={boundary}"}
+    key = os.environ.get("WHISPERFLOW_API_KEY", "").strip()
+    if key:
+        headers["Authorization"] = f"Bearer {key}"
+    try:
+        return _read_transcript(_http_post(url, body, headers, timeout=30))
+    except urllib.error.HTTPError as e:
+        raise AskError(f"speech-to-text failed ({e.code})")
+    except AskError:
+        raise
+    except Exception:
+        raise AskError("could not reach the speech-to-text service")
+
+
+_STT_PROVIDERS = {"openai": _stt_openai, "whisperflow": _stt_whisperflow}
+
+
+def transcribe(pcm: bytes) -> str:
+    """PCM bytes from the glasses → the words the grower spoke. The STT engine is a SERVER-SIDE,
+    swappable choice (GAIA_STT_PROVIDER=openai|whisperflow) — clients never transcribe; they only
+    stream audio. The grounding/answer hop is unchanged regardless of provider."""
+    if not pcm:
+        raise AskError("no audio received")
+    if len(pcm) > _MAX_AUDIO_BYTES:
+        raise AskError("that was too long to transcribe — ask a shorter question")
+    provider = os.environ.get("GAIA_STT_PROVIDER", "openai").strip().lower() or "openai"
+    fn = _STT_PROVIDERS.get(provider)
+    if fn is None:
+        raise AskError(f"unknown speech-to-text provider '{provider}'")
+    return fn(_pcm_to_wav(pcm))
 
 
 # --------------------------------------------------------------------------- grounding + answer
@@ -217,6 +268,7 @@ def handle_ask(body, service) -> dict:
     try:
         if isinstance(body, (bytes, bytearray)):
             event["audio_bytes"] = len(body)
+            event["stt_provider"] = os.environ.get("GAIA_STT_PROVIDER", "openai").strip().lower() or "openai"
             phase = "stt"
             t = time.monotonic()
             question = transcribe(bytes(body))

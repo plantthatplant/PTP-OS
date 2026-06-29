@@ -238,5 +238,53 @@ class RetryTest(unittest.TestCase):
         self.assertEqual(calls["n"], 1)            # fail fast — the grower doesn't wait twice
 
 
+class SttProviderTest(unittest.TestCase):
+    """STT is a swappable, server-side provider (GAIA_STT_PROVIDER) — clients never transcribe."""
+    def setUp(self):
+        self._saved = {k: os.environ.pop(k, None) for k in
+                       ("GAIA_STT_PROVIDER", "OPENAI_API_KEY", "WHISPERFLOW_URL", "WHISPERFLOW_API_KEY")}
+
+    def tearDown(self):
+        for k, v in self._saved.items():
+            os.environ.pop(k, None)
+            if v is not None:
+                os.environ[k] = v
+
+    def test_default_provider_is_openai(self):
+        with self.assertRaises(ask.AskError) as cm:
+            ask.transcribe(b"pcm")
+        self.assertIn("OPENAI_API_KEY", str(cm.exception))
+
+    def test_unknown_provider_is_honest(self):
+        os.environ["GAIA_STT_PROVIDER"] = "bogus"
+        with self.assertRaises(ask.AskError) as cm:
+            ask.transcribe(b"pcm")
+        self.assertIn("unknown speech-to-text provider", str(cm.exception))
+
+    def test_whisperflow_requires_url(self):
+        os.environ["GAIA_STT_PROVIDER"] = "whisperflow"
+        with self.assertRaises(ask.AskError) as cm:
+            ask.transcribe(b"pcm")
+        self.assertIn("WHISPERFLOW_URL", str(cm.exception))
+
+    def test_whisperflow_posts_wav_and_parses_text(self):
+        os.environ["GAIA_STT_PROVIDER"] = "whisperflow"
+        os.environ["WHISPERFLOW_URL"] = "http://whisperflow.local/v1/audio/transcriptions"
+        captured = {}
+        orig = ask._http_post
+        def fake(url, data, headers, timeout, retries=1):
+            captured["url"] = url
+            captured["has_wav_file"] = b'filename="speech.wav"' in data
+            return b'{"text": "is the canopy wet"}'
+        ask._http_post = fake
+        try:
+            out = ask.transcribe(b"\x00\x01\x02\x03")
+        finally:
+            ask._http_post = orig
+        self.assertEqual(out, "is the canopy wet")
+        self.assertEqual(captured["url"], "http://whisperflow.local/v1/audio/transcriptions")
+        self.assertTrue(captured["has_wav_file"])
+
+
 if __name__ == "__main__":
     unittest.main()
