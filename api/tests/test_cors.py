@@ -37,6 +37,7 @@ class CorsTest(unittest.TestCase):
             self.assertEqual(acao, "https://anything.example")
         finally:
             httpd.shutdown()
+            httpd.server_close()
 
     def test_allowlist_permits_listed_and_blocks_others(self):
         import os
@@ -49,6 +50,7 @@ class CorsTest(unittest.TestCase):
             self.assertIsNone(blocked)   # no CORS header → the browser blocks it
         finally:
             httpd.shutdown()
+            httpd.server_close()
             os.environ.pop("GAIA_CORS_ORIGINS", None)
 
 

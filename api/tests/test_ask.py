@@ -132,6 +132,7 @@ class EndpointTest(unittest.TestCase):
 
     def tearDown(self):
         self.httpd.shutdown()
+        self.httpd.server_close()
         for k, v in self._saved.items():
             if v is not None:
                 os.environ[k] = v
