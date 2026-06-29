@@ -1,0 +1,29 @@
+name: tests
+
+# Comprehensive gate: run the WHOLE Python test suite on every push and pull request.
+# (collector-tests.yml stays as a fast, path-scoped check for Collector changes; this is the
+# repo-wide safety net covering api/, companion/, app/, domain/, collector/ together.)
+on:
+  push:
+  pull_request:
+  workflow_dispatch: {}
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: ["3.11", "3.12"]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      # No third-party dependencies — the suite uses only the standard library.
+      - name: Run the full test suite
+        env:
+          PYTHONUTF8: "1"          # force UTF-8 I/O so non-ASCII (°C, å, ₂) behaves identically everywhere
+        run: python -m unittest discover -s . -p "test_*.py" -t . -v
