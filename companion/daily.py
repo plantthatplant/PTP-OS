@@ -24,12 +24,9 @@ from companion.devices.phone import PhoneDisplay
 from companion.devices.even_g2 import EvenG2Display
 from companion.walk import WalkSession, _short_subject
 
-from greenhouse_brain.snapshot_importer import import_snapshot
-from greenhouse_brain.providers.snapshot_provider import SnapshotProvider
-from greenhouse_brain.morning_analysis import MorningAnalysisEngine
-from greenhouse_brain import knowledge_gap, store, fusion
+from api.service import GaiaService               # the one orchestrator — compose once, here
+from greenhouse_brain import store
 from greenhouse_brain.lifecycle import experiment_from_candidate
-from collector.observers import plan_vs_reality
 
 _LATEST = os.path.join(_paths.REPO_ROOT, "data", "inbox", "latest.json")
 _PLAN = os.path.join(_paths.REPO_ROOT, "data", "inbox", "plan-latest.json")
@@ -37,19 +34,9 @@ _SAMPLE = os.path.join(_paths.APP_DIR, "sample_snapshot.json")
 _METRICS_LOG = os.path.join(_paths.APP_DIR, "data", "day-metrics.jsonl")
 
 
-def _load_plan():
-    """Intention from Google Drive (kept separate from reality). Empty if not synced yet."""
-    try:
-        with open(_PLAN, "r", encoding="utf-8") as f:
-            return json.load(f).get("observations", [])
-    except (FileNotFoundError, json.JSONDecodeError):
-        return []
-
-
-def _load_snapshot(override=None):
-    path = override or (_LATEST if os.path.exists(_LATEST) else _SAMPLE)
-    with open(path, "r", encoding="utf-8") as f:
-        return import_snapshot(json.load(f)), os.path.relpath(path, _paths.REPO_ROOT)
+def _snapshot_path(override=None):
+    """The snapshot the day runs on: an explicit path, else the live latest, else the sample."""
+    return override or (_LATEST if os.path.exists(_LATEST) else _SAMPLE)
 
 
 def _glasses_answer(message):
@@ -64,29 +51,24 @@ def _phase(t):
 
 
 def main() -> int:
-    snapshot, src = _load_snapshot(sys.argv[1] if len(sys.argv) > 1 else None)
+    path = _snapshot_path(sys.argv[1] if len(sys.argv) > 1 else None)
+    src = os.path.relpath(path, _paths.REPO_ROOT)
+    # One orchestration: GaiaService composes the day (snapshot → analysis → questions →
+    # plan-vs-reality → fused brief). The companion is a client of the SAME composition the API
+    # serves — the Brain stays the single source of truth, with no duplicated morning logic here.
+    snapshot, _provider, analysis, questions, _gaps, brief = GaiaService(snapshot_path=path)._compose()
     date = (snapshot.assembled_at or "today")[:10]
-    provider = SnapshotProvider(snapshot)
-    analysis = MorningAnalysisEngine().run(provider)
     experiments = [experiment_from_candidate(c, date)
                    for c in list(analysis.priorities) + list(analysis.opportunities)]
-    questions, _ = knowledge_gap.generate(analysis, [], snapshot.assembled_at, date,
-                                          store.prior_worth_by_kind())
     phone = PhoneDisplay()
     glasses = EvenG2Display(answer_source=_glasses_answer)
     walk = WalkSession(analysis, questions, experiments, snapshot, glasses)
     alerts = notes = walk_phases = 0
     recs_surfaced = 1 if analysis.priorities else 0
 
-    # 06:30 — MORNING BRIEF.  Unified Morning Intelligence: reality + plan + memory, one voice.
+    # 06:30 — MORNING BRIEF.  Unified Morning Intelligence: reality + plan + memory, one voice —
+    # already composed by GaiaService above (the same brief the API's /morning serves).
     _phase(f"06:30  MORNING BRIEF   (source: {src})")
-    plan_obs = _load_plan()
-    reality = [{"subject": o.subject, "kind": o.kind, "value": o.value} for o in snapshot.present()]
-    plan_gaps = plan_vs_reality.compare(plan_obs, reality, now_iso=snapshot.assembled_at)
-    brief = fusion.synthesize(analysis, coverage=snapshot.coverage(),
-                              reality=snapshot.reality_confidence(), plan_obs=plan_obs,
-                              plan_gaps=plan_gaps, memories=store.load_memories(),
-                              changes=None, questions=questions)
     # Phone: the one thought, the one priority, the one question. Glasses: the one line.
     phone.show_summary(brief.narrative)
     phone.show_priority("Do first", detail=f"{brief.one_priority}  ·  why: {brief.one_explanation.split(';')[0]}")
