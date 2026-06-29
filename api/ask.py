@@ -44,6 +44,9 @@ _DEFAULT_MODEL = "claude-opus-4-8"
 _PCM_RATE = 16000
 _PCM_CHANNELS = 1
 _PCM_SAMPLE_BYTES = 2
+# A spoken question is seconds of audio (~32 KB/s). Cap the body to bound STT cost / abuse —
+# ~5 minutes of 16 kHz mono PCM, well under OpenAI's 25 MB upload limit.
+_MAX_AUDIO_BYTES = 10 * 1024 * 1024
 
 
 class AskError(Exception):
@@ -70,6 +73,8 @@ def transcribe(pcm: bytes) -> str:
         raise AskError("speech-to-text is not configured (OPENAI_API_KEY not set)")
     if not pcm:
         raise AskError("no audio received")
+    if len(pcm) > _MAX_AUDIO_BYTES:
+        raise AskError("that was too long to transcribe — ask a shorter question")
 
     wav = _pcm_to_wav(pcm)
     boundary = "----gaia-voice-boundary"

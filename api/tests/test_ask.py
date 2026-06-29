@@ -58,9 +58,24 @@ class GuardsTest(unittest.TestCase):
 
     def test_transcribe_empty_audio(self):
         os.environ["OPENAI_API_KEY"] = "test-key"  # pass the key guard; empty audio still rejected
-        with self.assertRaises(ask.AskError) as cm:
-            ask.transcribe(b"")
-        self.assertIn("no audio", str(cm.exception))
+        try:
+            with self.assertRaises(ask.AskError) as cm:
+                ask.transcribe(b"")
+            self.assertIn("no audio", str(cm.exception))
+        finally:
+            os.environ.pop("OPENAI_API_KEY", None)
+
+    def test_transcribe_rejects_oversized_audio(self):
+        os.environ["OPENAI_API_KEY"] = "test-key"  # pass the key + non-empty guards
+        orig = ask._MAX_AUDIO_BYTES
+        ask._MAX_AUDIO_BYTES = 8
+        try:
+            with self.assertRaises(ask.AskError) as cm:
+                ask.transcribe(b"x" * 16)            # over the (lowered) cap → rejected before STT
+            self.assertIn("too long", str(cm.exception))
+        finally:
+            ask._MAX_AUDIO_BYTES = orig
+            os.environ.pop("OPENAI_API_KEY", None)
 
     def test_answer_empty_question(self):
         with self.assertRaises(ask.AskError):
