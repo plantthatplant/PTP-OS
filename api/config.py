@@ -62,7 +62,8 @@ class Config:
         data_dir = _env("GAIA_DATA_DIR", os.path.join(_paths.REPO_ROOT, "data"))
         return cls(
             host=_env("GAIA_HOST", "127.0.0.1"),
-            port=int(_env("GAIA_PORT", "8000")),
+            # GAIA_PORT wins; else honour a host-injected $PORT (Render/Railway/Heroku); else 8000.
+            port=int(_env("GAIA_PORT", _env("PORT", "8000"))),
             api_key=_env("GAIA_API_KEY", "gaia-dev-key"),
             data_dir=data_dir,
             app_data_dir=_env("GAIA_APP_DATA_DIR", os.path.join(_paths.APP_DIR, "data")),

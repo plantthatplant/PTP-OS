@@ -8,6 +8,7 @@ live here; understanding comes from the service.
 """
 from __future__ import annotations
 
+import collections
 import json
 import os
 import re
@@ -27,6 +28,33 @@ _PUBLIC = ("/api/v1/health", "/", "/index.html")   # reachable without an API ke
 
 def _auth_key():
     return os.environ.get("GAIA_API_KEY", _DEV_KEY)
+
+
+# Cost guard: /ask is the only endpoint that spends OpenAI/Anthropic money, and a public deploy
+# carries a browser-visible key — so cap it per-IP (sliding 60 s window, in-memory). Generous by
+# default; tighten with GAIA_ASK_RATE_PER_MIN (0 disables).
+def _ask_rate_per_min() -> int:
+    try:
+        return int(os.environ.get("GAIA_ASK_RATE_PER_MIN", "30") or "30")
+    except ValueError:
+        return 30
+
+
+_ask_hits = collections.defaultdict(collections.deque)
+
+
+def _ask_rate_ok(ip: str) -> bool:
+    limit = _ask_rate_per_min()
+    if limit <= 0:
+        return True
+    now = time.monotonic()
+    dq = _ask_hits[ip]
+    while dq and now - dq[0] > 60:
+        dq.popleft()
+    if len(dq) >= limit:
+        return False
+    dq.append(now)
+    return True
 
 
 # (method, compiled-path-regex) -> handler(service, match, query, body) -> (status, obj)
@@ -141,6 +169,10 @@ def make_handler(service: GaiaService, api_key: str, logger=None):
             if parsed.path not in _PUBLIC and not self._authed():
                 self._send(401, _err("unauthorized", "missing or invalid API key"))
                 return self._log(method, parsed.path, 401, t0, "unauthorized")
+            # Cost guard: cap /ask per IP (it spends OpenAI/Anthropic money).
+            if method == "POST" and parsed.path == "/api/v1/ask" and not _ask_rate_ok(self.client_address[0]):
+                self._send(429, _err("rate_limited", "too many voice requests — try again shortly"))
+                return self._log(method, parsed.path, 429, t0, "rate_limited")
             body = None
             if method == "POST":
                 length = int(self.headers.get("Content-Length", 0) or 0)
