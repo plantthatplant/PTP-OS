@@ -286,5 +286,32 @@ class SttProviderTest(unittest.TestCase):
         self.assertTrue(captured["has_wav_file"])
 
 
+class AskRateLimitTest(unittest.TestCase):
+    """/ask is the money-spending endpoint — a public deploy caps it per IP."""
+    def setUp(self):
+        from api import server
+        self._saved = os.environ.pop("GAIA_ASK_RATE_PER_MIN", None)
+        server._ask_hits.clear()
+
+    def tearDown(self):
+        from api import server
+        os.environ.pop("GAIA_ASK_RATE_PER_MIN", None)
+        if self._saved is not None:
+            os.environ["GAIA_ASK_RATE_PER_MIN"] = self._saved
+        server._ask_hits.clear()
+
+    def test_caps_per_ip_and_isolates_ips(self):
+        from api import server
+        os.environ["GAIA_ASK_RATE_PER_MIN"] = "3"
+        self.assertTrue(all(server._ask_rate_ok("1.2.3.4") for _ in range(3)))
+        self.assertFalse(server._ask_rate_ok("1.2.3.4"))   # 4th over the cap → blocked
+        self.assertTrue(server._ask_rate_ok("9.9.9.9"))    # a different IP is unaffected
+
+    def test_zero_disables_the_limit(self):
+        from api import server
+        os.environ["GAIA_ASK_RATE_PER_MIN"] = "0"
+        self.assertTrue(all(server._ask_rate_ok("x") for _ in range(200)))
+
+
 if __name__ == "__main__":
     unittest.main()

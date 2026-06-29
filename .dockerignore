@@ -1,0 +1,12 @@
+.git
+.github
+**/node_modules
+**/dist
+**/*.ehpk
+**/__pycache__
+*.pyc
+.env
+.env.*
+!.env.example
+data/
+**/.DS_Store
