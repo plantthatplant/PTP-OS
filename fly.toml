@@ -1,23 +1,33 @@
-# Fly.io config for the Gaia API. Rename `app` to your own, then: fly launch --no-deploy ; fly deploy.
-app = "gaia-api"
-primary_region = "arn"            # Stockholm — close to Kålaberga
+# fly.toml app configuration file generated for ptp-os on 2026-06-29T18:10:33Z
+#
+# See https://fly.io/docs/reference/configuration/ for information about how to use this file.
+#
+
+app = 'ptp-os'
+primary_region = 'ams'
 
 [build]
 
+[env]
+  GAIA_APP_DATA_DIR = '/data/app'
+  GAIA_DATA_DIR = '/data'
+  GAIA_HOST = '0.0.0.0'
+  GAIA_PORT = '8000'
+  GAIA_SOURCE = 'fixture'
+
+[[mounts]]
+  source = 'gaia_data'
+  destination = '/data'
+
 [http_service]
-  internal_port = 8000
-  force_https = true               # public URL is https://<app>.fly.dev  → give Lovable <that>/api/v1
-  auto_stop_machines = "off"       # stay always-on so the collector loop + /health keep running
+  internal_port = 8080
+  force_https = true
+  auto_stop_machines = 'off'
   auto_start_machines = true
   min_machines_running = 1
 
-[[mounts]]
-  source = "gaia_data"             # fly volumes create gaia_data --size 1
-  destination = "/data"
-
-[env]
-  GAIA_HOST = "0.0.0.0"
-  GAIA_PORT = "8000"
-  GAIA_DATA_DIR = "/data"
-  GAIA_APP_DATA_DIR = "/data/app"  # persists Memory / Learning / Observations across deploys
-  GAIA_SOURCE = "fixture"          # until live Synopta data can reach the host (see deploy doc)
+[[vm]]
+  memory = '1gb'
+  cpu_kind = 'shared'
+  cpus = 1
+  memory_mb = 256
