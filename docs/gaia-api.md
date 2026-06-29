@@ -136,12 +136,16 @@ client**). Every error is JSON; clients never parse HTML or tracebacks.
 
 ## 8. Migration & refactoring plan
 
-From the audit ([`gaia-api-audit.md`](gaia-api-audit.md)): the morning orchestration is currently
+From the audit ([`gaia-api-audit.md`](gaia-api-audit.md)): the morning orchestration was
 duplicated across `gaia.py`, `companion/daily.py`, and the demos. Plan (Brain untouched):
-1. **Ship `GaiaService` + the HTTP API** *(done this sprint — additive)*.
+1. **Ship `GaiaService` + the HTTP API** *(done — additive)*.
 2. **Re-point existing clients at the service**, deleting their duplicated orchestration:
-   `companion/daily.py` → `service.morning()/companion()/evening()`; `gaia.py` cmd_* → the
-   service; demos → thin clients of the API.
+   - `companion/daily.py` → **done**: composes via `GaiaService` (one orchestration; the
+     companion is now a client of the same composition the API serves).
+   - `gaia.py` cmd_* and the `app/` demos → still compose the Brain directly (pre-API
+     prototype/illustration, **not on the production path**); migrate the same way when touched.
+   The **production chain** (Even Hub → Gaia API → `GaiaService` → Brain/Fusion) already goes
+   through the single facade — the Brain is the single source of truth for every real client.
 3. **Convention + test:** only `api/` may import `store`, `knowledge_gap`, `lifecycle`, `fusion`,
    providers, observers.
 4. **Lovable** is built as a pure presentation client of `/api/v1` from day one.
