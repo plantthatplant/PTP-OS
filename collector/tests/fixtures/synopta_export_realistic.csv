@@ -1,0 +1,4 @@
+Tidpunkt;Hus;Lufttemperatur (°C);Luftfuktighet (%);Ventilation (%);Utetemperatur (°C);Larm;Larmtext
+2026-06-29 05:48:00;1;24,2;92;0;11,0;0;
+2026-06-29 05:48:00;2;16,0;66;20;11,0;1;Sensorfel: temperatur utanför förväntat intervall
+2026-06-29 05:48:00;3;21,0;64;30;11,0;0;

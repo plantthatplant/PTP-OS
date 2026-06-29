@@ -31,6 +31,18 @@ translation. Its vendor seam (`collector/sources/`) is built so the live Synopta
 a **single new module**. See [`specs/gaia-collector.md`](../specs/gaia-collector.md) and
 [`docs/gaia-collector.md`](../docs/gaia-collector.md).
 
+### Edge Collector — the production scheduled-export bridge (Sprint 14)
+
+[`collector/edge/`](../collector/edge/) is the unattended, all-day version of that bridge: it
+watches a folder for a **scheduled Synopta export** (CSV/TSV/Excel/JSON), parses it into the same
+raw vendor shape the translator already understands, and keeps `latest.json` current — with
+content-hash dedup, partial-write/debounce protection, reboot & power-loss recovery, bounded safe
+retries, a never-overwrite-newer freshness guard, durable Collector Health, and a Knowledge Gap
+raised on failure. It is **purely additive** (the Brain, API, and Snapshot model are unchanged) and
+its only remaining dependency is **Ridder enabling the scheduled export** — see
+[`docs/ridder-synopta-export-specification.md`](../docs/ridder-synopta-export-specification.md) and
+[`docs/sprint-14-go-live-checklist.md`](../docs/sprint-14-go-live-checklist.md).
+
 ## Conventions
 
 - Every integration implements an internal interface defined in `specs/`. The

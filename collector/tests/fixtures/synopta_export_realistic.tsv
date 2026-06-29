@@ -1,0 +1,4 @@
+timestamp	house	air_temp	rel_humidity	vent_position	outside_temp	alarm	alarm_text
+2026-06-29T05:48:00Z	1	24.2	92	0	11.0	0
+2026-06-29T05:48:00Z	2	16.0	66	20	11.0	1	Sensor fault: temperature out of expected range
+2026-06-29T05:48:00Z	3	21.0	64	30	11.0	0

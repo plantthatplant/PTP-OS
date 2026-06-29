@@ -1,0 +1,9 @@
+{
+  "_comment": "A 'future JSON' Synopta export as a flat array of per-house records (the second supported JSON shape). Mapped through the same column aliases as a CSV. One house omits rel_humidity to exercise honest absence.",
+  "site": "Kalaberga",
+  "rows": [
+    {"timestamp": "2026-06-29T05:48:00+02:00", "house": 1, "air_temp": 24.2, "rel_humidity": 92, "vent_position": 0, "outside_temp": 11.0, "alarm": false},
+    {"timestamp": "2026-06-29T05:48:00+02:00", "house": 2, "air_temp": 16.0, "rel_humidity": 66, "vent_position": 20, "outside_temp": 11.0, "alarm": true, "alarm_text": "Sensor fault: temperature out of expected range"},
+    {"timestamp": "2026-06-29T05:48:00+02:00", "house": 3, "air_temp": 21.0, "vent_position": 30, "outside_temp": 11.0, "alarm": false}
+  ]
+}

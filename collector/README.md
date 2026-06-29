@@ -22,10 +22,21 @@ honestly) and never touches the live control bus, the controller, or the Synopta
 ## Run it
 
 ```
-python collector/collect.py                                   # fixture source (default)
+python collector/collect.py                                   # fixture source (default), one shot
 python collector/collect.py --source drop-folder --path <export-folder>
 python collector/demo_pipeline.py                             # Synopta → Collector → Gaia, end to end
+python -m collector.edge.run                                  # the production Edge Collector (daemon)
 ```
+
+### Edge Collector (Sprint 14) — the all-day scheduled-export bridge
+
+For production, [`collector/edge/`](edge/) runs as an unattended daemon that **watches a folder** for
+scheduled Synopta exports (CSV/TSV/Excel/JSON) and keeps `latest.json` current automatically:
+content-hash dedup, partial-write/debounce protection, reboot & power-loss recovery, bounded safe
+retries, a never-overwrite-newer freshness guard, durable Collector Health, and a Knowledge Gap on
+failure. It reuses everything below (translate → validate → diff → write) unchanged — see
+[`collector/edge/README.md`](edge/README.md). The single remaining dependency is Ridder enabling the
+export: [`docs/ridder-synopta-export-specification.md`](../docs/ridder-synopta-export-specification.md).
 
 No dependencies for the v1 fixture / drop-folder sources. (On this machine, Python lives at
 `%LOCALAPPDATA%\Programs\Python\Python312\python.exe` until it's on PATH.)
