@@ -53,6 +53,38 @@ class AskError(Exception):
     """A hop failed in a way worth telling the grower about (kept short, honest)."""
 
 
+# Fast, transient cloud hiccups worth one retry. NOT timeouts — a hung service already made
+# the grower wait once; retrying would double it, so timeouts fail fast.
+_TRANSIENT_HTTP = {429, 500, 502, 503, 504}
+
+
+def _http_post(url, data, headers, timeout, retries=1):
+    """POST and return the raw response bytes, retrying only fast transient failures (429/5xx,
+    connection resets) with a short backoff. Re-raises the underlying error — including
+    `HTTPError`, so callers can read its body for a detail message."""
+    attempt = 0
+    while True:
+        req = urllib.request.Request(url, data=data, method="POST")
+        for k, v in headers.items():
+            req.add_header(k, v)
+        try:
+            with urllib.request.urlopen(req, timeout=timeout) as resp:
+                return resp.read()
+        except urllib.error.HTTPError as e:
+            if attempt < retries and e.code in _TRANSIENT_HTTP:
+                attempt += 1
+                time.sleep(0.4 * attempt)
+                continue
+            raise
+        except ConnectionError:                 # reset / refused / aborted — quick, safe to retry
+            if attempt < retries:
+                attempt += 1
+                time.sleep(0.4 * attempt)
+                continue
+            raise
+        # TimeoutError / URLError(DNS, etc.) → fail fast (no retry), surfaced as "could not reach …"
+
+
 # --------------------------------------------------------------------------- speech → text
 
 def _pcm_to_wav(pcm: bytes) -> bytes:
@@ -88,12 +120,10 @@ def transcribe(pcm: bytes) -> str:
     parts.write(f"\r\n--{boundary}--\r\n".encode())
     body = parts.getvalue()
 
-    req = urllib.request.Request(_OPENAI_URL, data=body, method="POST")
-    req.add_header("Authorization", f"Bearer {key}")
-    req.add_header("Content-Type", f"multipart/form-data; boundary={boundary}")
+    headers = {"Authorization": f"Bearer {key}",
+               "Content-Type": f"multipart/form-data; boundary={boundary}"}
     try:
-        with urllib.request.urlopen(req, timeout=30) as resp:
-            data = json.loads(resp.read().decode("utf-8"))
+        data = json.loads(_http_post(_OPENAI_URL, body, headers, timeout=30).decode("utf-8"))
     except urllib.error.HTTPError as e:
         raise AskError(f"speech-to-text failed ({e.code})")
     except Exception:
@@ -144,14 +174,11 @@ def answer(question: str, service) -> str:
         "system": f"{_SYSTEM}\n\nGREENHOUSE DATA (JSON):\n{_gaia_context(service)}",
         "messages": [{"role": "user", "content": question}],
     }
-    req = urllib.request.Request(_ANTHROPIC_URL, data=json.dumps(payload).encode("utf-8"),
-                                 method="POST")
-    req.add_header("Content-Type", "application/json")
-    req.add_header("x-api-key", key)
-    req.add_header("anthropic-version", _ANTHROPIC_VERSION)
+    headers = {"Content-Type": "application/json", "x-api-key": key,
+               "anthropic-version": _ANTHROPIC_VERSION}
     try:
-        with urllib.request.urlopen(req, timeout=60) as resp:
-            data = json.loads(resp.read().decode("utf-8"))
+        data = json.loads(_http_post(_ANTHROPIC_URL, json.dumps(payload).encode("utf-8"),
+                                     headers, timeout=60).decode("utf-8"))
     except urllib.error.HTTPError as e:
         detail = ""
         try:
