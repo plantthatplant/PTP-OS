@@ -83,32 +83,33 @@ cd ~/Documents/GitHub/PTP-OS
 GAIA_API_KEY=gaia-dev-key python3 -m api.server          # → 127.0.0.1:8000
 
 # 2) the Even app dev server
-cd ~/Documents/gaia-even
-npm run dev                                              # → 0.0.0.0:5173 (LAN: 192.168.1.3)
+cd companion/even-hub-gaia   # in the PTP-OS repo
+npm run dev                                              # → 0.0.0.0:5173 (LAN: <your-lan-ip>)
 ```
 
 ### Verified end-to-end (all green)
 - `GET http://127.0.0.1:8000/api/v1/morning` → real brief (Kalaberga, confidence Medium)
-- `GET http://192.168.1.3:5173/` → 200 (app served on the LAN)
-- `GET http://192.168.1.3:5173/gaia/api/v1/morning` → 200 (proxy → Gaia)
+- `GET http://<your-lan-ip>:5173/` → 200 (app served on the LAN)
+- `GET http://<your-lan-ip>:5173/gaia/api/v1/morning` → 200 (proxy → Gaia)
 
 ## Load onto the real glasses (developer QR flow)
 
 ```bash
-cd ~/Documents/gaia-even
-npx evenhub qr --url http://192.168.1.3:5173          # printed + -e opens it on screen
+cd companion/even-hub-gaia   # in the PTP-OS repo
+IP=$(ipconfig getifaddr en0)                            # your Mac's current LAN IP (DHCP can change it)
+npx evenhub qr --url "http://$IP:5173"                  # add -e to also open it on screen
 ```
 
-1. Make sure the **phone is on the same Wi-Fi** as this Mac (`192.168.1.3`).
-2. Open the **Even Hub companion app** (phone paired with the G2).
+1. Make sure the **phone is on the same Wi-Fi** as this Mac (the `$IP` above).
+2. Open the **Even Realities app** (phone paired with the G2) → **Hub tab**.
 3. **Scan the QR.** The app loads on the glasses.
-4. **Wear the glasses** → watch the three stages appear.
-   - Single tap = refresh the brief · Double-tap = exit.
+4. **Wear the glasses** → watch the three stages appear, then talk to Gaia.
+   - Single tap = ask Gaia (tap to start listening, tap to send) · double-tap = exit.
 
 ## Permanent install (distributable package)
 
 ```bash
-cd ~/Documents/gaia-even
+cd companion/even-hub-gaia   # in the PTP-OS repo
 npm run build                                           # → dist/
 npx evenhub pack app.json dist                          # → out.ehpk  (33 KB, built)
 # then: npx evenhub login  → upload out.ehpk via the Even Hub dev portal → install OTA
@@ -116,7 +117,7 @@ npx evenhub pack app.json dist                          # → out.ehpk  (33 KB, 
 
 ## Notes / limits
 
-- **Reachability:** the QR URL and the proxy target use `192.168.1.3`. If the Mac's LAN IP
+- **Reachability:** the QR URL and the proxy target use `<your-lan-ip>`. If the Mac's LAN IP
   changes, regenerate the QR and restart `npm run dev`.
 - **For a hosted (non-LAN) deployment**, the Gaia API needs a public HTTPS URL + per-client key,
   and the app would call it directly (`VITE_GAIA_API_URL`) — at which point the API's CORS
