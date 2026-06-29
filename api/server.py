@@ -60,10 +60,17 @@ def _err(code, message):
     return {"error": {"code": code, "message": message}}
 
 
+def _cors_origins():
+    # "*" (default) reflects any Origin — fine for dev / token-authed API. In production set
+    # GAIA_CORS_ORIGINS to a comma-separated allowlist (e.g. the Lovable + Even Hub origins).
+    return [o.strip() for o in os.environ.get("GAIA_CORS_ORIGINS", "*").split(",") if o.strip()]
+
+
 def make_handler(service: GaiaService, api_key: str, logger=None):
     routes = _routes()
     log = logger or (lambda rec: None)
     home = home_page(api_key)
+    cors_origins = _cors_origins()
 
     class Handler(BaseHTTPRequestHandler):
         server_version = "GaiaAPI/v1"
@@ -71,9 +78,18 @@ def make_handler(service: GaiaService, api_key: str, logger=None):
         # Browser clients (Lovable, the Even Hub web plugin) call cross-origin, so every
         # response carries CORS headers and OPTIONS preflight is answered. The API stays the
         # single source of truth; this only permits the window to reach it (Sprint 12 blocker #4).
+        # Origins are an env-configurable allowlist ("*" reflects any, the default).
         def _cors(self):
-            origin = self.headers.get("Origin", "*")
-            self.send_header("Access-Control-Allow-Origin", origin)
+            origin = self.headers.get("Origin", "")
+            if cors_origins == ["*"]:
+                allow = origin or "*"
+            elif origin in cors_origins:
+                allow = origin
+            else:
+                allow = ""                      # disallowed cross-origin → no CORS headers
+            if not allow:
+                return
+            self.send_header("Access-Control-Allow-Origin", allow)
             self.send_header("Vary", "Origin")
             self.send_header("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
             self.send_header("Access-Control-Allow-Headers", "Authorization, Content-Type, X-API-Key")
