@@ -19,6 +19,7 @@ import urllib.error
 import urllib.request
 
 from api import _paths  # noqa: F401  (path bootstrap)
+from api import service
 from api.server import serve
 from api.service import GaiaService
 from greenhouse_brain import store
@@ -40,6 +41,8 @@ class EndToEndTest(unittest.TestCase):
         store._QEVAL_FILE = os.path.join(self.tmp, "qeval.jsonl")
         store._MEMORIES_FILE = os.path.join(self.tmp, "mem.jsonl")
         store._INTERACTIONS_FILE = os.path.join(self.tmp, "int.jsonl")
+        self._orig_obs_log = service._OBS_LOG
+        service._OBS_LOG = os.path.join(self.tmp, "obs.jsonl")
         # No third-party keys in CI → /ask answers honestly rather than calling out.
         for k in ("OPENAI_API_KEY", "ANTHROPIC_API_KEY"):
             os.environ.pop(k, None)
@@ -53,6 +56,7 @@ class EndToEndTest(unittest.TestCase):
         self.httpd.server_close()
         for k, v in self._orig.items():
             setattr(store, k, v)
+        service._OBS_LOG = self._orig_obs_log
         shutil.rmtree(self.tmp, ignore_errors=True)
 
     # --- helpers ---

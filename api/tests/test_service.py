@@ -9,6 +9,7 @@ import tempfile
 import unittest
 
 from api import _paths  # noqa: F401
+from api import service
 from api.service import GaiaService
 from greenhouse_brain import store
 
@@ -28,11 +29,14 @@ class ServiceTest(unittest.TestCase):
         store._QEVAL_FILE = os.path.join(self.tmp, "qeval.jsonl")
         store._MEMORIES_FILE = os.path.join(self.tmp, "mem.jsonl")
         store._INTERACTIONS_FILE = os.path.join(self.tmp, "int.jsonl")
+        self._orig_obs_log = service._OBS_LOG          # the posted-observation log lives in api.service
+        service._OBS_LOG = os.path.join(self.tmp, "obs.jsonl")
         self.svc = GaiaService(snapshot_path=_SAMPLE)
 
     def tearDown(self):
         for k, v in self._orig.items():
             setattr(store, k, v)
+        service._OBS_LOG = self._orig_obs_log
         shutil.rmtree(self.tmp, ignore_errors=True)
 
     def test_morning_is_understanding_with_no_implementation_leak(self):
@@ -89,6 +93,14 @@ class ServiceTest(unittest.TestCase):
         self.assertIn("leaf-wetness", kinds)
         self.assertIn("note", kinds)
         self.assertTrue(all({"subject", "kind", "value", "captured_at"} <= set(o) for o in hist))
+
+    def test_voice_note_carries_a_full_timestamp(self):
+        # Regression: voice notes used a date-only stamp ("2026-06-29"), which always sorts BELOW
+        # timestamped observations ("2026-06-29T…") — so they silently dropped out of the
+        # newest-first, limit-capped history. They now carry a full ISO timestamp and sort by time.
+        self.svc.voice_note("brown spots, bench 3", subject="h1")
+        note = next(o for o in self.svc.observations() if o["kind"] == "note")
+        self.assertIn("T", str(note["captured_at"]))   # full timestamp, not a bare date
 
     def test_learning_reports_calibration(self):
         learn = self.svc.learning()

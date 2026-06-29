@@ -202,8 +202,11 @@ class GaiaService:
         obs = {"subject": subject or "site", "kind": "note", "value": text,
                "captured_at": _now(), "source": "grower (voice)", "method": "observed-by-human",
                "confidence": "medium", "verbatim": text}
+        # Full timestamp (not date-only): the observation history sorts newest-first and caps at
+        # a limit, so a date-only stamp would sort below timestamped observations and silently drop
+        # voice notes from history once enough observations accumulate.
         store.append_answer({"question": "(voice note)", "answer": text, "kind": "note",
-                             "subject": subject or "site", "captured_on": _now()[:10]})
+                             "subject": subject or "site", "captured_on": _now()})
         return {"accepted": True, "observation": obs}
 
     def post_observation(self, payload) -> dict:
