@@ -32,7 +32,7 @@ def load_env_file(path: str | None = None) -> None:
                 key, _, val = line.partition("=")
                 key = key.strip()
                 val = val.strip().strip('"').strip("'")
-                if key and key not in os.environ:
+                if key and val and key not in os.environ:   # blank values don't claim the var
                     os.environ[key] = val
     except FileNotFoundError:
         pass

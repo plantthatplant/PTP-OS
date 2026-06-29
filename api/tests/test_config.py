@@ -23,6 +23,20 @@ class LoadEnvFileTest(unittest.TestCase):
                 os.environ.pop(k, None)
             os.remove(path)
 
+    def test_blank_value_does_not_claim_the_var(self):
+        # The .env template ships `OPENAI_API_KEY=` blank; it must NOT set the var to "".
+        fd, path = tempfile.mkstemp()
+        os.close(fd)
+        with open(path, "w", encoding="utf-8") as f:
+            f.write("GAIA_TEST_C=\nGAIA_TEST_C=real\n")   # blank first, real second
+        os.environ.pop("GAIA_TEST_C", None)
+        try:
+            load_env_file(path)
+            self.assertEqual(os.environ["GAIA_TEST_C"], "real")   # blank skipped, real applied
+        finally:
+            os.environ.pop("GAIA_TEST_C", None)
+            os.remove(path)
+
     def test_missing_file_is_silent(self):
         load_env_file("/nonexistent/path/.env")   # must not raise
 
